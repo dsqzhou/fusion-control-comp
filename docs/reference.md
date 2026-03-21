@@ -198,7 +198,7 @@ high = [ 1499,  230,  172,  172,  348,  348,  270,  270,  348,  348,  270,  270]
 | `reference.mode` | `hold` | 默认 reference 模式 |
 | `reference.reference_keys` | `["Ip", "R", "Z", "lcfs_points"]` | 当前 reference 覆盖的核心目标 |
 | `predictor.host` | `127.0.0.1` | Docker 仿真器地址 |
-| `predictor.port` | `2223` | Docker 仿真器端口 |
+| `predictor.port` | `5558` | Docker 仿真器端口 |
 | `predictor.timeout` | `300.0` | socket 通信超时时间 |
 | `predictor.shot_id` | `13844_500` | 默认预设环境模板 |
 

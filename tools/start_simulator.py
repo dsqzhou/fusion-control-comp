@@ -7,7 +7,7 @@ import sys
 
 DEFAULT_CPUS_PER_CONTAINER = 4
 DEFAULT_MEMORY_PER_CONTAINER = "4G"
-DEFAULT_BASE_PORT = 2223
+DEFAULT_BASE_PORT = 5558
 RESERVE_PERCENTAGE = 10
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

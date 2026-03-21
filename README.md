@@ -139,7 +139,7 @@ python stop_simulator.py
 
 说明：
 
-- 默认对外端口从 `2223` 开始
+- 默认对外端口从 `5558` 开始
 - 端口需与 `configs/env_default.yaml` 中 `predictor.port` 一致
 - 多容器并行训练由选手自行配置
 
@@ -189,7 +189,7 @@ env.close()
 - `max_steps`：单个 episode 的最大步数，默认 `100`，当前场景最长支持 `499`
 - `reference.mode`：默认 reference 模式，`hold` 或 `trajectory`
 - `predictor.host`：Docker 仿真器地址，默认 `127.0.0.1`
-- `predictor.port`：Docker 仿真器端口，默认 `2223`
+- `predictor.port`：Docker 仿真器端口，默认 `5558`
 - `predictor.timeout`：socket 超时时间
 - `predictor.shot_id`：初始化所使用的平衡场景
 

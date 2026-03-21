@@ -28,7 +28,7 @@ class DockerSocketPredictor:
         self.config = config
 
         self.host: str = config.get("host", "127.0.0.1")
-        self.port: int = config.get("port", 2223)
+        self.port: int = config.get("port", 5558)
         self.timeout: float = config.get("timeout", 300.0)
         self.auto_connect: bool = config.get("auto_connect", False)
 
