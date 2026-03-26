@@ -296,8 +296,7 @@ options = {
 下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通，非官方最终成绩）：
 
 
-<img src="docs/RZIP.png" alt="RZIP demo" width="230" height=220/>
-<img src="docs/surfaces.gif" alt="surfaces demo" width="155" height=220/>
+<img src="docs/RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/surfaces.gif" alt="surfaces demo" width="300" height=450/>
 
 - 示例评分：`73` 分
 - 说明：该分数仅作为 README 展示示例，实际成绩会随训练配置、随机种子和评测集变化而波动
