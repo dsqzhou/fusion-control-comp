@@ -291,6 +291,17 @@ options = {
 - `test/check_submission.py`：构建 submission docker 并验证 API
 - `test/test_submission.py`：用真实环境联调 submission 服务
 
+### 示例结果与评分（参考）
+
+下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通，非官方最终成绩）：
+
+![surfaces demo](docs/surfaces.gif)
+
+![RZIP demo](docs/RZIP.png)
+
+- 示例评分：`73` 分
+- 说明：该分数仅作为 README 展示示例，实际成绩会随训练配置、随机种子和评测集变化而波动
+
 ## 7 维动作：经验降维参考
 
 比赛的**正式接口仍为 12 维真实电压动作**。`environment/wrappers.py` 中提供了 `Action7DTo12DWrapper` 和 `action_7d_to_12d()`，这是一种**降维参考方案**，仅用于快速实验和早期调参。
