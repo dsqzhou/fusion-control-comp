@@ -293,13 +293,70 @@ options = {
 
 ### 示例结果与评分（参考）
 
-下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通，非官方最终成绩）：
+下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通）：
 
 
 <img src="docs/RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/surfaces.gif" alt="surfaces demo" width="300" height=450/>
 
-- 示例评分：`73` 分
-- 说明：该分数仅作为 README 展示示例，实际成绩会随训练配置、随机种子和评测集变化而波动
+- **示例评分：3.65 分**（100 步推理，仅用于验证流程是否跑通，正式比赛为 500 步）
+- 各子项误差（越小越好）：
+
+  | 指标 | 误差均值 |
+  |------|----------|
+  | Ip 电流误差 ε_Ip | 1.3685 |
+  | 位置误差 ε_pos | 1.4330 |
+  | 形状误差 ε_lcfs | 0.8548 |
+
+- 实际成绩会随训练配置、随机种子和评测集变化而波动。
+
+### 本地评估
+
+离线评估脚本位于 `evaluation/` 目录，用法如下：
+
+```bash
+cd evaluation/eval
+python3 evaluate.py <target_path> <infer_result_path>
+```
+
+- `<target_path>`：标准答案文件，格式参见 `evaluation/results/target.json`
+- `<infer_result_path>`：选手推理结果文件，格式参见 `evaluation/results/infer_result.json`
+
+示例：
+
+```bash
+cd evaluation/eval
+python3 evaluate.py ../results/target.json ../results/infer_result.json
+```
+
+输出为 JSON，包含 `score`（总分）和各子任务的误差明细。
+
+---
+
+## 上机说明
+
+整体上机流程与真实装置实验结果，供参赛者理解任务背景与预期目标。
+
+### 整体技术方案
+
+本赛题核心思路是：
+
+> 在高保真环境中离线训练控制器，然后将神经网络控制器部署于真实装置，以毫秒级频率控制 12 组极向场（PF）及中心螺线管（CS）线圈电压，精确追踪等离子体电流 Ip、径向位置 R 和垂直位置 Z 的时间轨迹。
+
+### 上机流程图
+
+<img src="docs/Architecture.png" alt="RZIP demo" width="460" height=450/>
+
+### 关键上机实验结果
+
+以下结果来自 EXL-50U 真实放电实验，用于说明本赛题技术路线的实际效果。
+
+#### 偏滤器位形（Divertor）
+
+- **放电 #12662**：实现 **300 ms** 稳定偏滤器位形控制
+
+<img src="docs/12662_RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/12662_surfaces.png" alt="surfaces demo" width="300" height=450/>
+
+---
 
 ## 7 维动作：经验降维参考
 
