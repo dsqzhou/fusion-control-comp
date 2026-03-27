@@ -342,9 +342,16 @@ python3 evaluate.py ../results/target.json ../results/infer_result.json
 
 > 在高保真环境中离线训练控制器，然后将神经网络控制器部署于真实装置，以毫秒级频率控制 12 组极向场（PF）及中心螺线管（CS）线圈电压，精确追踪等离子体电流 Ip、径向位置 R 和垂直位置 Z 的时间轨迹。
 
-### 上机流程图
+### 控制架构总览
 
-<img src="docs/Architecture.png" alt="RZIP demo" width="460" height=450/>
+<img src="docs/Architecture.png" alt="RZIP demo" width="760" height=350/>
+
+该流架构可按以下 4 个部分理解：
+
+1. **比赛环境（HFM 高保真模型）**：以 HFM 仿真器为核心，提供与真实装置一致的状态演化和控制接口，作为训练与验证基础。
+2. **强化学习案例**：基于环境提供的观测与动作空间，使用示例训练脚本（如 PPO）完成策略学习与模型导出。
+3. **控制算法部署**：将训练后的策略封装到推理服务中，通过标准接口输出 12 维真实电压用于在线控制。
+4. **评价与打分**：在统一评测流程下，对各控制目标及位形跟踪误差进行综合评估，得到最终分数。
 
 ### 关键上机实验结果
 
@@ -354,7 +361,7 @@ python3 evaluate.py ../results/target.json ../results/infer_result.json
 
 - **放电 #12662**：实现 **300 ms** 稳定偏滤器位形控制
 
-<img src="docs/12662_RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/12662_surfaces.png" alt="surfaces demo" width="300" height=450/>
+<img src="docs/12662_RZIP.png" alt="RZIP demo" width="500" height=400/><img src="docs/12662_surfaces.png" alt="surfaces demo" width="300" height=450/>
 
 ---
 
