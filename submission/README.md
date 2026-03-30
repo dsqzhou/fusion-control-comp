@@ -10,7 +10,7 @@
 |------|--------|
 | `inference.py`（你的策略逻辑） | `Dockerfile`（路径、工作目录等） |
 | `model/policy.onnx`（你的模型） | `run.sh`、`start_infer.sh`（评测启动脚本） |
-| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/4`、`/saisresult`、`/app` 等 |
+| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/11`、`/saisresult`、`/app` 等 |
 | `service.py` 仅在有把握时微调 | `run_hfm_socket_server.sh`、`run_test.py` 由评测机提供，路径不可改 |
 
 ---
@@ -81,7 +81,7 @@ docker build \
   -t <你的 ACR 仓库>/<镜像名>:<标签> .
 ```
 
-推送至阿里云 ACR（**地域选乌鲁木齐**）：
+推送至阿里云 ACR（**地域选乌兰察布**）：
 
 ```bash
 docker login --username=<你的用户名> <ACR 注册表地址>
@@ -99,7 +99,7 @@ docker push <你的 ACR 仓库>/<镜像名>:<标签>
 ```bash
 docker build -f submission/Dockerfile -t fc-submission-test .
 docker run -d --rm -p 8000:8000 \
-  -v "$(pwd):/saisdata/4/standalone-env:ro" \
+  -v "$(pwd):/saisdata/11/standalone-env:ro" \
   --name fc-submission-test-run fc-submission-test
 docker exec -d fc-submission-test-run python3 /app/submission/service.py
 docker logs -f fc-submission-test-run

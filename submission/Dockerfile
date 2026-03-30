@@ -6,16 +6,16 @@ FROM ${BASE_IMAGE}
 # 环境变量：submission 服务端口与 Python 路径（不可改）
 ENV SUBMISSION_HOST=0.0.0.0 \
     SUBMISSION_PORT=8000 \
-    SAISDATA_ROOT=/saisdata/4 \
+    SAISDATA_ROOT=/saisdata/11 \
     INFER_RESULT_PATH=/saisresult/infer_result.json \
-    SAISDATA_SHOTS_CONFIG=/saisdata/4/inference/shots.yaml \
-    PYTHONPATH=/app:/saisdata/4/standalone-env:/saisdata/4/standalone-env/environment
+    SAISDATA_SHOTS_CONFIG=/saisdata/11/inference/shots.yaml \
+    PYTHONPATH=/app:/saisdata/11/standalone-env:/saisdata/11/standalone-env/environment
 
 WORKDIR /app
 
 # 创建评测机挂载与结果目录（路径固定）
-RUN mkdir -p /saisdata /saisdata/4 /saisresult \
-    && chmod 755 /saisdata /saisdata/4 /saisresult
+RUN mkdir -p /saisdata /saisdata/11 /saisresult \
+    && chmod 755 /saisdata /saisdata/11 /saisresult
 
 # 安装选手依赖
 COPY submission/requirements.txt /app/submission/requirements.txt

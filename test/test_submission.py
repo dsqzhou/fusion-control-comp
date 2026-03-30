@@ -70,7 +70,7 @@ def start_service(mode: str, service_url: str) -> tuple[subprocess.Popen[str] | 
                     "-p",
                     f"{port}:8000",
                     "-v",
-                    f"{ROOT}:/saisdata/4/standalone-env:ro",
+                    f"{ROOT}:/saisdata/11/standalone-env:ro",
                     image_name,
                 ],
                 cwd=str(ROOT),

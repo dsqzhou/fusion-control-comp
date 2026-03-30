@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # --- 1. 环境变量：工作目录、端口、结果与日志路径（由评测机挂载决定，请勿修改）---
-SAISDATA_ROOT="${SAISDATA_ROOT:-/saisdata/4}"
+SAISDATA_ROOT="${SAISDATA_ROOT:-/saisdata/11}"
 MCR_ROOT="${MCR_ROOT:-/opt/matlabruntime/R2025a}"
 SUBMISSION_HOST="${SUBMISSION_HOST:-0.0.0.0}"
 SUBMISSION_PORT="${SUBMISSION_PORT:-8000}"

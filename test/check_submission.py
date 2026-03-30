@@ -101,7 +101,7 @@ def main():
                     "-p",
                     f"{host_port}:8000",
                     "-v",
-                    f"{root}:/saisdata/4/standalone-env:ro",
+                    f"{root}:/saisdata/11/standalone-env:ro",
                     image_name,
                 ],
                 cwd=str(root),

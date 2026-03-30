@@ -14,8 +14,9 @@
 
 1. **赛题说明文档**：了解任务背景、评测规则和提交要求
 2. **本文档（README.md）**：完成本地安装、仿真器启动、训练与自测流程
-3. **docs/reference.md**：查看 observation、action、reference 和配置的详细字段说明
-4. **submission/README.md**：了解提交镜像的构建、HTTP 接口、约束条件（不可改的 Dockerfile、启动脚本等）
+3. **docs/docker_runtime.md**：查看云服务直接部署 runtime 镜像的使用方式
+4. **docs/reference.md**：查看 observation、action、reference 和配置的详细字段说明
+5. **submission/README.md**：了解提交镜像的构建、HTTP 接口、约束条件（不可改的 Dockerfile、启动脚本等）
 
 ## 项目目录结构
 
@@ -25,13 +26,22 @@ fusion-control-comp/
 │   ├── env_default.yaml
 │   └── shots.yaml
 ├── docs/
-│   └── reference.md
+│   ├── Architecture.png
+│   ├── docker_runtime.md
+│   ├── shape.md
+│   ├── reference.md
+│   └── ...
 ├── environment/     # 环境实现
 │   ├── hfm_simulator.py
 │   ├── hfm_predictor.py
+│   ├── preprocessing.py
 │   ├── shot_registry.py
-│   └── ...
+│   ├── wrappers.py
+│   └── __init__.py
 ├── examples/        # 示例脚本
+│   ├── example_reward.py
+│   ├── use_flatten_observation.py
+│   ├── use_7d_action.py
 │   ├── run_random_policy.py
 │   ├── custom_reference_reset.py
 │   ├── train_sb3_ppo.py
@@ -40,6 +50,12 @@ fusion-control-comp/
 │   ├── start_simulator.py
 │   └── stop_simulator.py
 ├── test/            # 环境与 submission 测试
+│   ├── smoke_test_environment.py
+│   ├── check_submission.py
+│   └── test_submission.py
+├── evaluation/      # 本地离线评分脚本与示例结果
+│   ├── eval/
+│   └── results/
 └── submission/      # 最终提交模板（详见 submission/README.md）
     ├── Dockerfile   # 正式提交用，勿改
     ├── start_infer.sh
@@ -47,14 +63,11 @@ fusion-control-comp/
     ├── inference.py
     ├── service.py
     ├── requirements.txt
+    ├── README.md
     └── model/
 ```
 
-## 赛题简要说明
-
----
-
-## 上机说明
+## 赛题与上机说明
 
 本节给出整体上机流程与真实装置实验结果，帮助参赛者快速理解任务背景与预期目标。
 
@@ -89,8 +102,8 @@ fusion-control-comp/
 
 回到赛题本身：选手需要针对高保真 HFM 仿真环境设计控制策略，核心控制目标包括：
 
-- 等离子体电流 `Ip`
-- 等离子体位置 `R`、`Z`
+- 等离子体电流 `Ip`（单位：A）
+- 等离子体位置 `R`、`Z`（单位：m）
 - 最外闭合磁面接口 `lcfs_points`
 
 任务形态包括两类：
@@ -111,25 +124,6 @@ fusion-control-comp/
 - `lcfs_points` 对应最外闭合磁面边界点，用于描述整体位形轮廓
 - 其余观测量主要作为辅助状态，帮助模型判断当前位置、形状变化趋势和控制响应
 
-## 训练建议
-
-为了提高策略对不同初始条件和 reference 任务的泛化能力，建议训练时不要只覆盖 `hold` 任务，也加入一定比例的 `trajectory` 任务。
-
-推荐的基础做法是优先围绕 `Ip` 和 `R` 构造变轨迹训练：
-
-- `Ip`：相对初始目标做 `±100 kA` 范围内的变化
-- `R`：相对初始目标做 `±3 cm` 范围内的变化
-- `Z`：基础阶段可先保持不变
-- `lcfs_points`：基础阶段可先保持不变，后续再逐步增加边界跟踪训练
-
-另外，建议在 `reset_params` 中加入一定随机扰动，用于提升模型对不同初始平衡和隐藏测试条件的鲁棒性。一个实用的起点是：
-
-- `signeo`：相对初始值扰动 `±50%`
-- `bp`：相对初始值扰动 `±10%`
-- `q0`：相对初始值扰动 `±10%`
-
-这些扰动会影响等离子体的初始位置、形状和后续动态响应。更详细的参数说明见 `docs/reference.md`。
-
 ## 仿真环境准备
 
 ### 1. 安装 Python 环境
@@ -148,18 +142,24 @@ pip install stable-baselines3 torch onnx
 ```
 其余训练框架由选手自行选择安装
 
-### 2. 准备 HFM Docker 镜像
+### 2. 准备 HFM 仿真环境
 
-请先拉取比赛提供的 环境 镜像，并打上本地标签：
+根据运行环境不同，选手可选择以下两种方式之一启动 HFM 仿真服务。
+
+#### 方案 A：通过 Docker 启动仿真器
+
+适用场景：本地机器或可直接运行 Docker 的服务器。
+
+环境镜像链接：`[待补充]`
+
+请先拉取比赛提供的环境镜像，并打上本地标签：
 
 ```bash
 docker pull crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:latest
 docker tag crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:latest hfm-matlab-server:latest
 ```
 
-### 3. 启动仿真器
-
-单容器示例：
+启动单实例：
 
 ```bash
 cd tools
@@ -172,11 +172,21 @@ python start_simulator.py -n 1 -y
 python stop_simulator.py
 ```
 
+#### 方案 B：直接使用 runtime 镜像
+
+适用场景：云服务可直接部署镜像，但当前环境不便再额外启动 Docker 容器。
+
+此方式下无需在训练环境中再拉起仿真器容器，可直接部署主办方提供的 runtime 镜像。
+
+- runtime 镜像链接：`[待补充]`
+- 启动方式与依赖说明：参考 `docs/docker_runtime.md`
+
 说明：
 
 - 默认对外端口从 `5558` 开始
 - 端口需与 `configs/env_default.yaml` 中 `predictor.port` 一致
-- 多容器并行训练由选手自行配置
+- 无论采用 Docker 方式还是 runtime 镜像方式，Python 训练侧均通过 socket 与 HFM 服务通信
+- 多实例并行训练请分别参考对应启动方式进行端口配置
 
 ## 训练环境：HFMSimulator 与 HFMSocketPredictor
 
@@ -213,6 +223,22 @@ obs, reward, terminated, truncated, info = env.step(action)
 env.close()
 ```
 
+如果你想在 `reset()` 时显式更新初始平衡相关参数 `signeo`、`bp`、`q0`，可以这样传入 `options`：
+
+```python
+options = {
+    "reset_params": {
+        "signeo": 7.2e6,
+        "bp": 0.20,
+        "q0": 1.6,
+    }
+}
+
+obs, info = env.reset(seed=42, options=options)
+```
+
+更完整的可运行示例见 `examples/custom_reference_reset.py`，其中同时演示了 `reset_params` 与 `trajectory reference` 的联合设置。
+
 **说明**：
 - `HFMSimulator` 在内部使用 `HFMSocketPredictor` 与 Docker 仿真器通信
 - 选手只需调用 `HFMSimulator` 接口，无需直接使用 `HFMSocketPredictor`
@@ -233,19 +259,6 @@ env.close()
 - `shot_id` 决定底层仿真初始化所用的平衡配置
 - `lcfs_points` / `reference_lcfs_points` 现在固定为 `32 x 2`，不再通过配置项暴露
 - 更详细的字段和维度说明见 `docs/reference.md`
-
-### `shot` 是什么
-
-可以把 `shot` 理解为官方提供的预设环境模板。每个 `shot_id` 固定了一组底层平衡配置和默认初始参数，方便选手直接开始训练。
-
-当前提供 4 组 `shot`：
-
-- `13844_500`
-- `13844_600`
-- `15892_400`
-- `15892_500`
-
-建议先固定一个 `shot` 跑通环境就够了。跑通之后，再逐步加入 `reference` 变化和 `reset_params` 扰动来提升泛化能力。
 
 ## 环境输入输出说明
 
@@ -306,6 +319,38 @@ options = {
 - 推荐先从 `Ip` 和 `R` 的轨迹变化开始做训练，再逐步加入更复杂的位形目标
 - `reset_params` 可用于对初始平衡做扰动增强，提升泛化能力
 
+### `shot` 是什么
+
+可以把 `shot` 理解为官方提供的预设环境模板。每个 `shot_id` 固定了一组底层平衡配置和默认初始参数，方便选手直接开始训练。
+
+当前提供 4 组 `shot`：
+
+- `13844_500`
+- `13844_600`
+- `15892_400`
+- `15892_500`
+
+建议先固定一个 `shot` 跑通环境，再逐步加入 `reference` 变化和 `reset_params` 扰动来提升泛化能力。
+
+## 训练建议
+
+在环境跑通、接口含义明确之后，再开始系统调参通常更高效。为了提高策略对不同初始条件和 reference 任务的泛化能力，建议训练时不要只覆盖 `hold` 任务，也加入一定比例的 `trajectory` 任务。
+
+推荐的基础做法是优先围绕 `Ip` 和 `R` 构造变轨迹训练：
+
+- `Ip`：相对初始目标做 `±100 kA` 范围内的变化
+- `R`：相对初始目标做 `±3 cm` 范围内的变化
+- `Z`：基础阶段可先保持不变
+- `lcfs_points`：基础阶段可先保持不变，后续再逐步增加边界跟踪训练
+
+另外，建议在 `reset_params` 中加入一定随机扰动，用于提升模型对不同初始平衡和隐藏测试条件的鲁棒性。一个实用的起点是：
+
+- `signeo`：相对初始值扰动 `±50%`
+- `bp`：相对初始值扰动 `±10%`
+- `q0`：相对初始值扰动 `±10%`
+
+这些扰动会影响等离子体的初始位置、形状和后续动态响应。更详细的参数说明见 `docs/reference.md`。
+
 ## Example 说明
 
 ### 基础示例
@@ -326,70 +371,7 @@ options = {
 - `test/check_submission.py`：构建 submission docker 并验证 API
 - `test/test_submission.py`：用真实环境联调 submission 服务
 
-### 示例结果与评分（参考）
-
-下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通）：
-
-
-<img src="docs/RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/surfaces.gif" alt="surfaces demo" width="300" height=450/>
-
-- **示例评分：3.65 分**（100 步推理，仅用于验证流程是否跑通，正式比赛为 500 步）
-- 各子项误差（越小越好）：
-
-  | 指标 | 误差均值 |
-  |------|----------|
-  | Ip 电流误差 ε_Ip | 1.3685 |
-  | 位置误差 ε_pos | 1.4330 |
-  | 形状误差 ε_lcfs | 0.8548 |
-
-- 实际成绩会随训练配置、随机种子和评测集变化而波动。
-
-### 本地评估
-
-离线评估脚本位于 `evaluation/` 目录，用法如下：
-
-```bash
-cd evaluation/eval
-python3 evaluate.py <target_path> <infer_result_path>
-```
-
-- `<target_path>`：标准答案文件，格式参见 `evaluation/results/target.json`
-- `<infer_result_path>`：选手推理结果文件，格式参见 `evaluation/results/infer_result.json`
-
-示例：
-
-```bash
-cd evaluation/eval
-python3 evaluate.py ../results/target.json ../results/infer_result.json
-```
-
-输出为 JSON，包含 `score`（总分）和各子任务的误差明细。
-
-
-## 7 维动作：经验降维参考
-
-比赛的**正式接口仍为 12 维真实电压动作**。`environment/wrappers.py` 中提供了 `Action7DTo12DWrapper` 和 `action_7d_to_12d()`，这是一种**降维参考方案**，仅用于快速实验和早期调参。
-
-**关键约束**：
-- 7 维动作映射**仅作训练阶段参考**，不代表正式评测允许 7 维输出
-- 如模型内部输出 7 维，**必须在 `submission/inference.py` 中自行映射回 12 维**后再提交
-- **正式提交的镜像必须返回 12 维真实电压**
-
-### 7 维到 12 维的映射逻辑（参考）
-
-核心假设：中间 10 维线圈按 5 组对称对处理，每组共享同一电压。映射关系如下：
-
-```
-v[0]  → u[0]        # 第 1 维单独控制
-v[1]  → u[1] = u[11] # 第 2 和第 12 维共享
-v[2]  → u[2] = u[10]
-v[3]  → u[3] = u[9]
-v[4]  → u[4] = u[8]
-v[5]  → u[5] = u[7]
-v[6]  → u[6]        # 第 7 维单独控制
-```
-
-这种对称保持的做法通常更有利于维持等离子体整体稳定，但**仅供参考，不是比赛规则**。
+如果你已经基于示例完成训练并导出了模型，下一步就是把策略封装成提交所需的 ONNX 推理服务。
 
 ## ONNX 导出与提交工作流
 
@@ -401,7 +383,8 @@ v[6]  → u[6]        # 第 7 维单独控制
 2. **模型导出**：将训练好的模型导出为 ONNX（通常命名 `policy.onnx`）
 3. **推理脚本编写**：在 `submission/inference.py` 中实现推理逻辑
 4. **本地自测**：运行 `test/check_submission.py` 和 `test/test_submission.py` 验证
-5. **镜像构建与提交**：按 `submission/README.md` 的要求构建镜像并推送到阿里云 ACR
+5. **镜像构建与推送**：按 `submission/README.md` 的要求构建镜像并推送到阿里云 ACR
+6. **赛事镜像提交**：在 <https://competition.ai4s.com.cn/> 可控核聚变控制赛道提交镜像
 
 ### 推荐流程（示例）
 
@@ -428,6 +411,69 @@ python test_submission.py --launch-service docker --service-url http://127.0.0.1
 - `submission/model/policy.onnx` 需要由选手自己导出和放入
 - `submission/inference.py` 中的预处理和推理逻辑可自由实现，但需符合指定的 Policy 接口
 - `submission/Dockerfile`、`start_infer.sh`、`run.sh` 及容器内路径均**不可修改**，详见 `submission/README.md`
+
+### 本地评估
+
+离线评估脚本位于 `evaluation/` 目录，用法如下：
+
+```bash
+cd evaluation/eval
+python3 evaluate.py <target_path> <infer_result_path>
+```
+
+- `<target_path>`：标准答案文件，格式参见 `evaluation/results/target.json`
+- `<infer_result_path>`：选手推理结果文件，格式参见 `evaluation/results/infer_result.json`
+
+示例：
+
+```bash
+cd evaluation/eval
+python3 evaluate.py ../results/target.json ../results/infer_result.json
+```
+
+输出为 JSON，包含 `score`（总分）和各子任务的误差明细。
+
+## 7 维动作：经验降维参考
+
+比赛的**正式接口仍为 12 维真实电压动作**。`environment/wrappers.py` 中提供了 `Action7DTo12DWrapper` 和 `action_7d_to_12d()`，这是一种**降维参考方案**，仅用于快速实验和早期调参。
+
+**关键约束**：
+- 7 维动作映射**仅作训练阶段参考**，不代表正式评测允许 7 维输出
+- 如模型内部输出 7 维，**必须在 `submission/inference.py` 中自行映射回 12 维**后再提交
+- **正式提交的镜像必须返回 12 维真实电压**
+
+### 7 维到 12 维的映射逻辑（参考）
+
+核心假设：中间 10 维线圈按 5 组对称对处理，每组共享同一电压。映射关系如下：
+
+```
+v[0]  → u[0]        # 第 1 维单独控制
+v[1]  → u[1] = u[11] # 第 2 和第 12 维共享
+v[2]  → u[2] = u[10]
+v[3]  → u[3] = u[9]
+v[4]  → u[4] = u[8]
+v[5]  → u[5] = u[7]
+v[6]  → u[6]        # 第 7 维单独控制
+```
+
+这种对称保持的做法通常更有利于维持等离子体整体稳定，但**仅供参考，不是比赛规则**。
+
+## 示例结果与评分（参考）
+
+下面给出一组示例可视化结果（仅用于说明训练与提交流程已跑通）：
+
+<img src="docs/RZIP.png" alt="RZIP demo" width="460" height=450/><img src="docs/surfaces.gif" alt="surfaces demo" width="300" height=450/>
+
+- **示例评分：3.65 分**（100 步推理，仅用于验证流程是否跑通，正式比赛为 500 步）
+- 各子项误差（越小越好）：
+
+  | 指标 | 误差均值 |
+  |------|----------|
+  | Ip 电流误差 ε_Ip | 1.3685 |
+  | 位置误差 ε_pos | 1.4330 |
+  | 形状误差 ε_lcfs | 0.8548 |
+
+- 实际成绩会随训练配置、随机种子和评测集变化而波动。
 
 ### Windows 已知问题：OpenMP DLL 冲突
 在 Windows 本地联调时，若出现 `libomp.dll` 与 `libiomp5md.dll` 冲突（OpenMP runtime duplicate），可临时设置：
