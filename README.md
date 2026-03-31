@@ -155,8 +155,8 @@ pip install stable-baselines3 torch onnx
 请先拉取比赛提供的环境镜像，并打上本地标签：
 
 ```bash
-docker pull crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:latest
-docker tag crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:latest hfm-matlab-server:latest
+docker pull crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition
+docker tag crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition hfm-matlab-server:competition
 ```
 
 启动单实例：

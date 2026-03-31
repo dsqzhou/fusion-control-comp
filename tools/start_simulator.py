@@ -54,7 +54,7 @@ def start_docker_compose():
         content.append(
             f"""  hfm_server_{i}:
     container_name: hfm_server_{i}
-    image: hfm-matlab-server:latest
+    image: hfm-matlab-server:competition
     ports:
       - "{port}:5558"
     networks:
