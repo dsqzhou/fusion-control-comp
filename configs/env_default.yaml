@@ -7,6 +7,6 @@ reference:
 
 predictor:
   host: "127.0.0.1"
-  port: 5558
+  port: 2223
   timeout: 300.0
-  shot_id: "13844_500"
+  shot_id: "13906_500"

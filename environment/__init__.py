@@ -21,6 +21,7 @@ from .wrappers import (
     Action7DTo12DWrapper,
     DictObsFlattenWrapper,
 )
+from . import xpt_utils
 
 __all__ = [
     "DockerSocketPredictor",
@@ -36,4 +37,5 @@ __all__ = [
     "flatten_dict_observation",
     "action_7d_to_12d",
     "ACTION_7D_TO_12D_INDEX",
+    "xpt_utils",
 ]

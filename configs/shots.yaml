@@ -32,3 +32,11 @@
     signeo: 6e6
     bp: 0.19
     q0: 1.44
+
+"13906_500":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.2.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_13906_xpt_v2.2.mat"
+  reset_defaults:
+    signeo: 4.8e6
+    bp: 0.3
+    q0: 1.9
