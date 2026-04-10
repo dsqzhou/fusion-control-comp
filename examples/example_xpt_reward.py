@@ -26,7 +26,7 @@ if str(EXAMPLES) not in sys.path:
     sys.path.append(str(EXAMPLES))
 
 from environment import HFMSimulator  # noqa: E402
-from environment.xpt_utils import extract_target_xpoints, isoflux_residuals_scheme2  # noqa: E402
+from environment.xpt_utils import extract_target_isoflux_points, extract_target_xpoints, isoflux_residuals_scheme2  # noqa: E402
 from xpt_example_common import DEFAULT_CONFIG_PATH, connection_hint  # noqa: E402
 
 
@@ -34,10 +34,13 @@ class XptIsofluxReward:
     """把 reset 时刻提取的目标 X 点位固定下来，供后续 step 计算 reward。"""
 
     def __init__(self) -> None:
+        self.target_rB: np.ndarray | None = None
+        self.target_zB: np.ndarray | None = None
         self.target_rX: np.ndarray | None = None
         self.target_zX: np.ndarray | None = None
 
-    def set_targets_from_initial_obs(self, initial_obs: dict, slots: int = 4) -> None:
+    def set_targets_from_initial_obs(self, initial_obs: dict, slots: int = 4, lcfs_step: int = 4) -> None:
+        self.target_rB, self.target_zB, _ = extract_target_isoflux_points(initial_obs, lcfs_step=lcfs_step)
         self.target_rX, self.target_zX, _ = extract_target_xpoints(initial_obs, slots=slots)
 
     def __call__(
@@ -50,10 +53,17 @@ class XptIsofluxReward:
     ) -> float:
         if terminated:
             return -10.0
-        if self.target_rX is None or self.target_zX is None:
+        if (
+            self.target_rB is None
+            or self.target_zB is None
+            or self.target_rX is None
+            or self.target_zX is None
+        ):
             raise RuntimeError("XptIsofluxReward targets are not initialized from reset observation")
         res, _ = isoflux_residuals_scheme2(
             observation,
+            target_rB=self.target_rB,
+            target_zB=self.target_zB,
             target_rX=self.target_rX,
             target_zX=self.target_zX,
         )
@@ -77,8 +87,11 @@ def main() -> int:
     env = HFMSimulator(config, reward_fn=reward_fn)
     try:
         obs, _ = env.reset(seed=args.seed)
-        reward_fn.set_targets_from_initial_obs(obs, slots=4)
+        reward_fn.set_targets_from_initial_obs(obs, slots=4, lcfs_step=4)
         print("OK: reset 成功，开始 step。")
+        print("target LCFS isoflux points from reset:")
+        print("  target_rB:", reward_fn.target_rB)
+        print("  target_zB:", reward_fn.target_zB)
         print("target X points from reset:")
         print("  target_rX:", reward_fn.target_rX)
         print("  target_zX:", reward_fn.target_zX)

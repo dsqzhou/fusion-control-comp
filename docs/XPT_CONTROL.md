@@ -101,11 +101,129 @@ shot选择："13906_500"
 
 ---
 
-## 4. 为什么当前要用“固定 X 点槽位”
+## 4. 当前建议的两条控制路线
+
+### 4.1 方案一：低维、可解释、适合作为 baseline
+
+这里先强调：**方案一的 baseline 需要同时考虑基础形状量和 X 点信息**。也就是说：
+
+- `Ip`, `Rmin`, `Rmax`, `kappa` 是基础部分；
+- X 点位置与 X 点磁通是在这个基础之上追加的局部拓扑约束。
+
+目标很明确：
+
+1. 跟踪 4 个基础形状量：`Ip`, `Rmin`, `Rmax`, `kappa`。
+2. 从 `reset` 后初始平衡提取 **4 个目标 X 点位**。
+3. 在当前时刻，从 `obs` 中识别并排序当前 X 点。
+4. 计算当前 X 点相对目标 X 点的位置误差。
+5. 计算当前 X 点处的 `|FX - FB|`。
+
+推荐作为默认 baseline 的特征是 **20 维**：
+
+```text
+[Ip, Rmin, Rmax, kappa 的相对误差] + 4 × [valid, dr, dz, dFX]
+```
+
+其中：
+
+- 前 4 维是基础形状量相对目标的误差；
+- `dr`, `dz` 是 X 点位置相对目标的相对误差。
+- `dFX = |FX - FB| / scale`。
+
+推荐函数：
+
+- `xpt_utils.extract_target_xpoints(initial_obs, slots=4)`
+- `xpt_utils.scheme1_feature_vector(obs, target_values=..., target_rX=..., target_zX=..., slots=4)`
+
+其中 `scheme1_feature_vector(...)` 是当前更符合 FusionControl `default_ray` 思路的主接口：
+
+- 传入 `target_values` 时，返回 **20 维 baseline 特征**；
+- 若只想做“只看 X 点”的消融实验，也可以只保留 X 点部分，即 **16 维**：
+
+```text
+4 × [valid, dr, dz, dFX]
+```
+
+对应函数：
+
+- `xpt_utils.scheme1_xpoint_features(obs, target_rX=..., target_zX=..., slots=4)`
+
+所以从“XPT 封装给外部训练”的默认建议出发，**优先建议使用 20 维的 `scheme1_feature_vector` 作为 baseline**；`scheme1_xpoint_features` 更适合作为只保留 X 点约束的简化实验。
+
+适用场景：
+
+- 快速建立可解释 baseline。
+- 想先验证 reward 设计和 X 点排序逻辑是否有效。
+- 想先用基础形状量稳住大尺度位形，再分析 X 点约束带来的额外价值。
+
+### 4.2 方案二：等磁通物理约束
+
+方案二不只关心“点有没有对上”，还关心“磁面和局部场是否对”。
+
+它包含两部分。
+
+#### 4.2.1 12 点等磁通残差
+
+- 在 `reset` 后的初始平衡上，从 32 个 LCFS 点里均匀取 8 个目标点：`rB[i], zB[i]`，默认 `i = 0, 4, 8, ..., 28`。
+- 再加上 **4 个目标 X 点位**，这些目标 X 点位同样来自初始平衡，而不是当前步重新识别的 X 点。
+- 共 12 个点，定义残差：
+
+```text
+ψ(R_i, Z_i) - FB
+```
+
+如果这些点确实都落在同一目标分界面上，那么残差应趋于 0。
+
+这里的“12 个点”具体是：
+
+- **8 个固定等磁通目标点位**：来自 `initial_obs["rB"]`, `initial_obs["zB"]`，在 `reset` 时一次性选定。
+- **4 个固定目标 X 点位**：来自 `initial_obs`，在 `reset` 时一次性选定。
+
+因此，方案二衡量的是：
+
+- 当前磁通场在这 **8 个固定等磁通目标点位**上的 ψ，是否接近当前 `FB`。
+- 当前磁通场在这 **4 个固定目标 X 点位**上的 ψ，是否也接近当前 `FB`。
+
+函数：
+
+`isoflux_residuals_scheme2(obs, target_rB=..., target_zB=..., target_rX=..., target_zX=..., lcfs_step=4, order=None)`
+
+返回：
+
+- 长度 12 的残差向量。
+- `meta` 调试信息，包括索引、点位、`fb` 和 `fx_order`。
+
+#### 4.2.2 X 点极向场模
+
+函数：
+
+`xpoint_poloidal_field_magnitude(obs, target_rX=..., target_zX=..., slots=4, order=None)`
+
+返回每个槽位的：
+
+- `Br`
+- `Bz`
+- `sqrt(Br^2 + Bz^2)`
+
+这里也建议传入 **目标 X 点位**，这样检查的是：
+
+- 当前磁通场在“目标 X 点应该在的位置”上，是否仍满足极向场接近 0。
+
+若不传 `target_rX/target_zX`，函数会回退到当前识别并排序后的 X 点槽位；但对方案二而言，**更推荐传目标点位**，因为这与“固定目标位形”的控制逻辑一致。
+
+适用方式：
+
+- 直接作为 reward penalty。
+- 作为 constraint 或 curriculum 中后期项。
+- 作为日志诊断量，判断“位置对了但拓扑没对”的情况。
+
+---
+
+## 5. 当前要用“固定 X 点槽位”
 
 一个直接难点是：不同时间步的 `nX` 可能变化，X 点顺序也可能变化。如果直接把原始 `rX/zX/FX` 喂给网络，会导致同一维度在相邻时间步语义漂移，学习会很不稳定。
 
-因此本仓库采用一下规则：
+因此本仓库采用以下规则：
 
 - 固定槽位数，默认 `slots=4`。
 - 对有效 X 点按 `zX` **从高到低排序**。
@@ -113,26 +231,37 @@ shot选择："13906_500"
 
 对应函数：`xpt_utils.extract_sorted_xpoints(obs, slots=4)`。
 
-而是让策略和 reward 都基于 **稳定语义的槽位表示**：
+这样做的目的，是让策略和 reward 都基于 **稳定语义的槽位表示**：
 
-- X 点始终按z方向从上往下顺序排列
+- X 点始终按 `z` 方向从上往下顺序排列。
 - 缺失 X 点时，`valid=0`，上层逻辑可以显式惩罚或忽略。
 
 当前磁通代理量定义为：
 
-$$
+```text
 |FX - FB|
-$$
+```
 
 它表示 X 点磁通相对边界参考磁通的偏差。若 X 点确实落在期望分界面附近，该量应更接近 0。
 
+这里要区分两类“X 点位”：
+
+- **当前识别到的 X 点**：来自当前步 `obs["rX"]`, `obs["zX"]`, `obs["FX"]`，并通过 `extract_sorted_xpoints` 排序后用于当前状态表征。
+- **目标 X 点位**：来自初始平衡（通常是 `reset` 后第一步观测），通过 `extract_target_xpoints(initial_obs, slots=4)` 固定下来，后续作为方案一/方案二的目标位置。
+- **目标等磁通点位**：来自初始平衡的 LCFS，通过 `extract_target_isoflux_points(initial_obs, lcfs_step=4)` 固定下来，后续作为方案二的 8 个边界目标位置。
+
+也就是说：
+
+- **排序** 解决的是“当前观测里的 X 点语义漂移”问题。
+- **固定目标 X 点位** 解决的是“控制目标要不要跟着当前 X 点一起漂”这个问题。
+
 ---
 
-## 5. 物理约束：从 `Fx` 到 ψ、再到 `Br/Bz`
+## 6. 物理约束：从 `Fx` 到 ψ、再到 `Br/Bz`
 
-### 5.1 `Fx` 不是最终特征，而是二维 ψ 场的展平
+### 6.1 `Fx` 不是最终特征，而是二维 ψ 场的展平
 
-`Fx` 本质上是二维极向磁通场 ψ 的展平版本。为了做插值、等磁通残差或极向场分析，需要先把它还原为 `(66, 65)` 的网格。
+`Fx` 本质上是一维展开后的极向磁通数据。要做等磁通残差、X 点磁通或极向场计算，首先要把它还原成 `66 × 65` 网格上的二维磁通场 ψ，然后再在目标点上做插值。
 
 本库提供：
 
@@ -140,16 +269,16 @@ $$
 - `infer_fx_reshape_order(obs)`
 - `get_psi_grid(obs, order=None)`
 
-其中一个实际细节是：HFM 数据可能沿用 MATLAB 列主序，而 numpy 默认是行主序。所以不能想当然把 `Fx.reshape(66, 65)` 当真。`infer_fx_reshape_order(obs)` 会比较 X 点处的 `FX` 与网格插值结果，自动在 `'C'` / `'F'` 中选更合理的还原方式。
+其中 `get_psi_grid(obs, order=None)` 会先把一维 `Fx` 还原成二维 ψ 网格。
 
-### 5.2 极向场为什么重要
+### 6.2 极向场为什么重要
 
 在 `(R, Z)` 截面上，极向磁通 ψ 与极向场分量满足：
 
-$$
-B_R = -\frac{1}{R}\frac{\partial \psi}{\partial Z}, \quad
-B_Z = \frac{1}{R}\frac{\partial \psi}{\partial R}
-$$
+```text
+Br = -(1 / R) * (dψ / dZ)
+Bz =  (1 / R) * (dψ / dR)
+```
 
 这给了我们一个比“位置误差”更接近物理本身的约束。
 
@@ -160,7 +289,7 @@ $$
 
 本库的做法是：
 
-1. 用 `numpy.gradient(psi, rx, zx)` 求 \(\partial\psi/\partial R\) 与 \(\partial\psi/\partial Z\)。
+1. 用 `numpy.gradient(psi, rx, zx)` 求 `dψ/dR` 与 `dψ/dZ`。
 2. 对目标点做双线性插值。
 3. 代入上式计算 `Br`, `Bz`。
 
@@ -172,115 +301,46 @@ $$
 
 理想 X 点可用下式刻画：
 
-$$
-\sqrt{B_R^2 + B_Z^2} \approx 0
-$$
+```text
+sqrt(Br^2 + Bz^2) ≈ 0
+```
 
 数值上，因为公式含 `1/R`，实现里对 `R` 使用了下限 `r_floor`，避免除零。
 
 ---
 
-## 6. 本仓库当前建议的两条控制路线
-
-### 6.1 方案一：低维、可解释、适合作为 baseline
-
-目标很明确：
-
-1. 跟踪 4 个全局形状量：`Ip`, `Rmin`, `Rmax`, `kappa`。
-2. 跟踪最多 4 个 X 点槽位的位置误差。
-3. 约束各槽位的 `|FX - FB|`。
-
-对应特征向量为 **20 维**：
-
-`[Ip,Rmin,Rmax,kappa 相对误差] + 4 × [valid, dr, dz, dFX]`
-
-其中：
-
-- `dr`, `dz` 是 X 点位置相对目标的相对误差。
-- `dFX = |FX - FB| / scale`。
-
-函数：
-
-`xpt_utils.scheme1_feature_vector(obs, target_keys=..., target_values=..., target_rX=..., target_zX=..., slots=4)`
-
-适用场景：
-
-- 快速建立可解释 baseline。
-- 想先验证 reward 设计和 X 点排序逻辑是否有效。
-
-### 6.2 方案二：加入更强的物理结构约束
-
-方案二不只关心“点有没有对上”，还关心“磁面和局部场是否对”。
-
-它包含两部分。
-
-#### 6.2.1 12 点等磁通残差
-
-- 在 LCFS 上取 8 个点：`rB[i], zB[i]`，默认 `i = 0, 4, 8, ..., 28`。
-- 再加上 4 个排序后的 X 点槽位。
-- 共 12 个点，定义残差：
-
-$$
-\psi(R_i, Z_i) - FB
-$$
-
-如果这些点确实都落在同一目标分界面上，那么残差应趋于 0。
-
-函数：
-
-`isoflux_residuals_scheme2(obs, lcfs_step=4, order=None)`
-
-返回：
-
-- 长度 12 的残差向量。
-- `meta` 调试信息，包括索引、点位、`fb` 和 `fx_order`。
-
-#### 6.2.2 X 点极向场模
-
-函数：
-
-`xpoint_poloidal_field_magnitude(obs, slots=4, order=None)`
-
-返回每个槽位的：
-
-- `Br`
-- `Bz`
-- `sqrt(Br^2 + Bz^2)`
-
-适用方式：
-
-- 直接作为 reward penalty。
-- 作为 constraint 或 curriculum 中后期项。
-- 作为日志诊断量，判断“位置对了但拓扑没对”的情况。
-
 ---
 
-## 8. API 速查
+## 7. API 速查
 
 | 函数 | 作用 |
 | --- | --- |
 | `extract_sorted_xpoints` | 按 `z` 降序固定槽位，返回 `r,z,FX,valid,nx,fb` |
+| `extract_target_xpoints` | 从初始平衡观测提取固定的 4 个目标 X 点位 |
+| `extract_target_isoflux_points` | 从初始平衡的 32 个 LCFS 点中提取固定的 8 个等磁通目标点位 |
 | `flux_abs_diff` | 计算 `|FX-FB|/scale` |
 | `relative_error` | 逐元素相对误差 |
 | `lcfs_isoflux_indices` | 生成 LCFS 等间隔采样索引 |
 | `reshape_fx_to_psi` / `infer_fx_reshape_order` / `get_psi_grid` | ψ 网格还原与主序推断 |
+| `psi_at_points` | 在给定点集上插值得到当前 ψ |
 | `interp_psi_bilinear` | ψ 双线性插值 |
 | `gradient_psi_on_grid` | 计算 `∂ψ/∂R`, `∂ψ/∂Z` |
 | `poloidal_br_bz` | 由 `∂ψ` 与 `R` 计算 `Br,Bz` |
 | `br_bz_at_point` | 任意 `(R,Z)` 处的 `Br,Bz` |
-| `scheme1_feature_vector` | 20 维方案一特征 |
-| `isoflux_residuals_scheme2` | 12 维等磁通残差 |
-| `xpoint_poloidal_field_magnitude` | X 点 `Br,Bz` 与 `|B_pol|` |
+| `scheme1_xpoint_features` | 16 维方案一 X 点特征：`4 × [valid, dr, dz, dFX]` |
+| `scheme1_feature_vector` | 兼容接口；可返回 20 维组合特征，也可退化为 16 维 X 点特征 |
+| `isoflux_residuals_scheme2` | 8 个固定等磁通目标点位 + 4 个目标 X 点位的 12 维等磁通残差 |
+| `xpoint_poloidal_field_magnitude` | 在给定 X 点位上计算 `Br,Bz` 与 `|B_pol|` |
 
 ---
 
-## 9. 示例脚本
+## 8. 示例脚本
 
 以下示例都需要 **已启动的 HFM 服务**，并通过 `HFMSimulator` 从真实环境拉取观测，不使用合成数据。
 
-- `examples/example_xpt_scheme1.py`：打印方案一 20 维特征。
-- `examples/example_xpt_isoflux.py`：打印方案二 12 点等磁通残差与 X 点极向场模。
-- `examples/example_xpt_reward.py`：给出基于 `isoflux_residuals_scheme2` 的本地 `reward_fn` 示例。
+- `examples/example_xpt_scheme1.py`：`reset` 提取基础形状目标和目标 X 点位，再对当前观测打印方案一 20 维 baseline 特征。
+- `examples/example_xpt_isoflux.py`：`reset` 提取 8 个等磁通目标点位和目标 X 点位，再打印方案二 12 点等磁通残差与目标 X 点位上的极向场模。
+- `examples/example_xpt_reward.py`：在 `reset` 时固定 8 个等磁通目标点位和目标 X 点位，再给出基于 `isoflux_residuals_scheme2` 的本地 `reward_fn` 示例。
 
 共用逻辑见 `examples/xpt_example_common.py`。
 

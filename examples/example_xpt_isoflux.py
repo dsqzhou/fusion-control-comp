@@ -2,7 +2,7 @@
 示例：方案二等磁通残差（8 个 LCFS 点 + 4 个目标 X 点位）与 X 点极向场模。
 
 **仅使用 HFMSimulator 与仿真器交互后的真实 observation**：
-- `reset` 观测用于提取 4 个目标 X 点位
+- `reset` 观测用于提取 8 个等磁通目标点位和 4 个目标 X 点位
 - 之后对当前 step 的观测做等磁通与极向场计算
 
 用法（需先启动 HFM）：
@@ -27,6 +27,7 @@ if str(EXAMPLES) not in sys.path:
 
 from environment.xpt_utils import (  # noqa: E402
     br_bz_at_point,
+    extract_target_isoflux_points,
     extract_target_xpoints,
     get_psi_grid,
     infer_fx_reshape_order,
@@ -58,7 +59,12 @@ def main() -> int:
         return 1
 
     print("OK: 已从 HFM 获取观测。")
+    target_rB, target_zB, target_idx = extract_target_isoflux_points(initial_obs, lcfs_step=4)
     target_rX, target_zX, target_valid = extract_target_xpoints(initial_obs, slots=4)
+    print("target LCFS isoflux points from reset:")
+    print("  indices:", target_idx)
+    print("  target_rB:", target_rB)
+    print("  target_zB:", target_zB)
     print("target X points from reset:")
     print("  valid:", target_valid)
     print("  target_rX:", target_rX)
@@ -76,12 +82,16 @@ def main() -> int:
 
     res, meta = isoflux_residuals_scheme2(
         obs,
+        target_rB=target_rB,
+        target_zB=target_zB,
         target_rX=target_rX,
         target_zX=target_zX,
         lcfs_step=4,
     )
     print("isoflux_residuals_scheme2 shape:", res.shape, "fb=", meta["fb"])
-    print("  residuals:", res)
+    print("  lcfs residuals (8):", res[: target_rB.size])
+    print("  target X residuals (4):", res[target_rB.size :])
+    print("  abs mean residual:", float(np.nanmean(np.abs(res))))
 
     brs, bzs, mag = xpoint_poloidal_field_magnitude(
         obs,
@@ -89,7 +99,9 @@ def main() -> int:
         target_zX=target_zX,
         slots=4,
     )
-    print("xpoint_poloidal_field_magnitude |B|:", mag)
+    print("xpoint Br:", brs)
+    print("xpoint Bz:", bzs)
+    print("xpoint |B_pol|:", mag)
     return 0
 
 

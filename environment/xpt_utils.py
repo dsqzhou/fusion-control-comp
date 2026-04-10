@@ -110,6 +110,33 @@ def extract_target_xpoints(
     return target_rX, target_zX, valid
 
 
+def extract_target_isoflux_points(
+    initial_obs: dict[str, Any],
+    lcfs_step: int = 4,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    从**初始平衡/初始 reset 观测**中提取固定的 LCFS 等磁通目标点位。
+
+    默认从 32 个边界点中按 ``0, 4, 8, ..., 28`` 取 8 个点。
+
+    返回
+    ----
+    target_rB, target_zB : shape (n_points,)
+    indices : 选取的原始 LCFS 索引
+    """
+    r_b = np.asarray(initial_obs.get("rB", []), dtype=np.float64).ravel()
+    z_b = np.asarray(initial_obs.get("zB", []), dtype=np.float64).ravel()
+    if r_b.size < 32 or z_b.size < 32:
+        lc = np.asarray(initial_obs.get("lcfs_points", np.zeros((32, 2))), dtype=np.float64)
+        if lc.shape == (32, 2):
+            r_b = lc[:, 0].ravel()
+            z_b = lc[:, 1].ravel()
+
+    n_lcfs = min(32, r_b.size, z_b.size)
+    idx = lcfs_isoflux_indices(n_lcfs, step=lcfs_step)
+    return r_b[idx].copy(), z_b[idx].copy(), idx
+
+
 def lcfs_isoflux_indices(n: int = 32, step: int = 4) -> np.ndarray:
     """LCFS 上每隔 `step` 取一点：默认 0, 4, …, 28 共 8 点。"""
     idx = np.arange(0, n, step, dtype=int)
@@ -408,16 +435,18 @@ def scheme1_feature_vector(
 
 def isoflux_residuals_scheme2(
     obs: dict[str, Any],
+    target_rB: np.ndarray | list[float],
+    target_zB: np.ndarray | list[float],
     target_rX: np.ndarray | list[float],
     target_zX: np.ndarray | list[float],
     lcfs_step: int = 4,
     order: Literal["C", "F"] | None = None,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """
-    方案二：8 个 LCFS 采样点 + 4 个**目标 X 点位**，共 12 点的 **ψ - FB**（应趋于 0）。
+    方案二：8 个**固定 LCFS 目标点位** + 4 个**目标 X 点位**，共 12 点的 **ψ - FB**（应趋于 0）。
 
-    LCFS 点取 ``rB[i], zB[i]``，``i = 0, step, 2*step, ...``（默认 step=4 → 8 点）。
-    X 点位置来自初始平衡固定下来的 ``target_rX, target_zX``，而不是当前重新识别出的 X 点。
+    - LCFS 目标点位由初始平衡提取，通常来自 32 个边界点中每隔 `lcfs_step` 取 1 个。
+    - X 点位置来自初始平衡固定下来的 ``target_rX, target_zX``，而不是当前重新识别出的 X 点。
 
     返回
     ----
@@ -427,23 +456,16 @@ def isoflux_residuals_scheme2(
     rx, zx, psi, ord_use = get_psi_grid(obs, order=order)
     fb = _safe_scalar(obs.get("FB", 0.0))
 
-    r_b = np.asarray(obs.get("rB", []), dtype=np.float64).ravel()
-    z_b = np.asarray(obs.get("zB", []), dtype=np.float64).ravel()
-    if r_b.size < 32 or z_b.size < 32:
-        lc = np.asarray(obs.get("lcfs_points", np.zeros((32, 2))), dtype=np.float64)
-        if lc.shape == (32, 2):
-            r_b = lc[:, 0].ravel()
-            z_b = lc[:, 1].ravel()
-
-    n_lcfs = min(32, r_b.size, z_b.size)
-    idx = lcfs_isoflux_indices(n_lcfs, step=lcfs_step)
+    r_b = np.asarray(target_rB, dtype=np.float64).ravel()
+    z_b = np.asarray(target_zB, dtype=np.float64).ravel()
+    if r_b.size != z_b.size:
+        raise ValueError("target_rB and target_zB must have the same length")
+    idx = np.arange(r_b.size, dtype=int)
     psi_lcfs = []
     pts = []
     for i in idx:
-        if i >= n_lcfs:
-            break
         rr, zz = float(r_b[i]), float(z_b[i])
-        pts.append((rr, zz, "lcfs", int(i)))
+        pts.append((rr, zz, "target_lcfs", int(i)))
         psi_lcfs.append(interp_psi_bilinear(rx, zx, psi, rr, zz))
     psi_lcfs = np.asarray(psi_lcfs, dtype=np.float64)
     res_lcfs = psi_lcfs - fb
@@ -525,6 +547,7 @@ __all__ = [
     "flux_abs_diff",
     "extract_sorted_xpoints",
     "extract_target_xpoints",
+    "extract_target_isoflux_points",
     "lcfs_isoflux_indices",
     "reshape_fx_to_psi",
     "infer_fx_reshape_order",

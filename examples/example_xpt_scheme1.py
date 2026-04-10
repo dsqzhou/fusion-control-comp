@@ -1,9 +1,9 @@
 """
-示例：方案一 XPT 特征（仅 4×X 点 valid/dr/dz/dFX）。
+示例：方案一 20 维 baseline 特征。
 
 **仅使用 HFMSimulator 与仿真器交互后的真实 observation**：
 - `reset` 得到初始平衡，用它固定 4 个目标 X 点位
-- 再随机 `step` 若干步，对当前观测计算方案一 XPT 特征
+- 再随机 `step` 若干步，对当前观测计算方案一 20 维 baseline 特征
 
 用法（需先启动 HFM，且端口与 configs/env_default.yaml 一致）：
   cd fusion-control-comp
@@ -26,11 +26,7 @@ sys.path.insert(0, str(ROOT))
 if str(EXAMPLES) not in sys.path:
     sys.path.append(str(EXAMPLES))
 
-from environment.xpt_utils import (  # noqa: E402
-    extract_sorted_xpoints,
-    extract_target_xpoints,
-    scheme1_xpoint_features,
-)
+from environment.xpt_utils import extract_sorted_xpoints, extract_target_xpoints, scheme1_feature_vector  # noqa: E402
 from xpt_example_common import (  # noqa: E402
     DEFAULT_CONFIG_PATH,
     connection_hint,
@@ -39,7 +35,7 @@ from xpt_example_common import (  # noqa: E402
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="XPT 方案一：从真实环境观测构造 16 维 X 点特征")
+    parser = argparse.ArgumentParser(description="XPT 方案一：从真实环境观测构造 20 维 baseline 特征")
     parser.add_argument(
         "--config",
         type=Path,
@@ -66,8 +62,19 @@ def main() -> int:
         return 1
 
     target_rX, target_zX, target_valid = extract_target_xpoints(initial_obs, slots=4)
+    target_values = np.array(
+        [
+            float(np.asarray(initial_obs["Ip"]).ravel()[0]),
+            float(np.asarray(initial_obs["Rmin"]).ravel()[0]),
+            float(np.asarray(initial_obs["Rmax"]).ravel()[0]),
+            float(np.asarray(initial_obs["kappa"]).ravel()[0]),
+        ],
+        dtype=np.float64,
+    )
     r_x, z_x, _, valid, nx, fb = extract_sorted_xpoints(obs, slots=4)
     print("OK: 已从 HFM 获取观测。")
+    print("baseline targets from reset:")
+    print("  target_values [Ip, Rmin, Rmax, kappa]:", target_values)
     print("target X points from reset:")
     print("  valid:", target_valid)
     print("  target_rX:", target_rX)
@@ -77,14 +84,16 @@ def main() -> int:
     print("  rX (sorted slots):", r_x)
     print("  zX (sorted slots):", z_x)
 
-    vec = scheme1_xpoint_features(
+    vec = scheme1_feature_vector(
         obs,
+        target_values=target_values.tolist(),
         target_rX=target_rX.tolist(),
         target_zX=target_zX.tolist(),
         slots=4,
     )
-    print("scheme1_xpoint_features dim =", vec.size, "(expected 16)")
-    print("  4x4 xpt features:", vec.reshape(4, 4))
+    print("scheme1_feature_vector dim =", vec.size, "(expected 20)")
+    print("  first 4 baseline rel errors:", vec[:4])
+    print("  4x4 xpt features:", vec[4:].reshape(4, 4))
     return 0
 
 
