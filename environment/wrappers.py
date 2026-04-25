@@ -62,7 +62,7 @@ class Action7DTo12DWrapper(gym.ActionWrapper):
     ):
         super().__init__(env)
         low_7 = np.array([-1499, -230, -172, -172, -348, -348, -270], dtype=np.float32)
-        high_7 = np.array([100, 230, 172, 172, 348, 348, 270], dtype=np.float32)
+        high_7 = np.array([1499, 230, 172, 172, 348, 348, 270], dtype=np.float32)
         if action_low_7d is not None:
             low_7 = np.asarray(action_low_7d, dtype=np.float32)
         if action_high_7d is not None:
