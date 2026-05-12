@@ -1,0 +1,17 @@
+[run_test] using existing submission service.
+[subtask] start A1
+[subtask] done A1: f_surv=0.703, timeout=False
+[subtask-score] A1 score=6.829740 | Ip=0.920704 pos=4.385150 LCFS=1.523887 | f_surv=0.703407 timeout=False | timeout=False: 推理接口未超时（单步5s）；f_surv<1 说明等离子体提前终止，后续步无贡献。
+[subtask] start A2
+[subtask] done A2: f_surv=0.788, timeout=False
+[subtask-score] A2 score=3.507265 | Ip=0.615794 pos=2.322086 LCFS=0.569386 | f_surv=0.787575 timeout=False | timeout=False: 推理接口未超时（单步5s）；f_surv<1 说明等离子体提前终止，后续步无贡献。
+[subtask] start B1
+[subtask] done B1: f_surv=0.936, timeout=False
+[subtask-score] B1 score=12.736426 | Ip=3.727583 pos=5.287501 LCFS=3.721342 | f_surv=0.935872 timeout=False | timeout=False: 推理接口未超时（单步5s）；f_surv<1 说明等离子体提前终止，后续步无贡献。
+[subtask] start B2
+[subtask] done B2: f_surv=0.932, timeout=False
+[subtask-score] B2 score=4.412855 | Ip=0.858081 pos=2.095844 LCFS=1.458930 | f_surv=0.931864 timeout=False | timeout=False: 推理接口未超时（单步5s）；f_surv<1 说明等离子体提前终止，后续步无贡献。
+[subtask] start B3
+[subtask] done B3: f_surv=0.337, timeout=False
+[subtask-score] B3 score=2.837837 | Ip=0.516327 pos=1.622433 LCFS=0.699077 | f_surv=0.336673 timeout=False | timeout=False: 推理接口未超时（单步5s）；f_surv<1 说明等离子体提前终止，后续步无贡献。
+[run_test] saved to /data/dsq/saisdata/fusion-control-comp/runs/train_25env/inference_smoke/infer_result_full.json

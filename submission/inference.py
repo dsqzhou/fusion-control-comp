@@ -22,12 +22,38 @@ if str(ENVIRONMENT_DIR) not in sys.path:
 
 _preprocessing = importlib.import_module("preprocessing")
 action_7d_to_12d = _preprocessing.action_7d_to_12d
-flatten_dict_observation = _preprocessing.flatten_dict_observation
 
 MODEL_DIR = ROOT / "model"
 DEFAULT_MODEL_PATH = MODEL_DIR / "policy.onnx"
 ACTION_DIM = 12
 ACTION_DIM_7 = 7
+ERROR_KEYS = ("Ip", "R", "Z")
+ERROR_SCALES = np.array([1.0e6, 0.1, 0.1], dtype=np.float32)
+ACTION_LOW_NORM_7D = np.full(7, -1.0, dtype=np.float32)
+ACTION_HIGH_NORM_7D = np.full(7, 1.0, dtype=np.float32)
+ACTION_LOW_PHYS_7D = np.array([-1499, -230, -172, -172, -348, -348, -270], dtype=np.float32)
+ACTION_HIGH_PHYS_7D = np.array([100, 230, 172, 172, 348, 348, 270], dtype=np.float32)
+
+
+def _scalar(value: Any) -> float:
+    arr = np.asarray(value, dtype=np.float64).reshape(-1)
+    return float(arr[0]) if arr.size > 0 else 0.0
+
+
+def _policy_observation(observation: dict[str, Any]) -> np.ndarray:
+    errors = []
+    for key in ERROR_KEYS:
+        value = _scalar(observation.get(key, 0.0))
+        reference = _scalar(observation.get(f"reference_{key}", value))
+        errors.append(value - reference)
+    return (np.asarray(errors, dtype=np.float32) / ERROR_SCALES).reshape(1, -1)
+
+
+def _normalized_7d_to_physical(action: np.ndarray) -> np.ndarray:
+    action = np.asarray(action, dtype=np.float32).reshape(-1)
+    action = np.clip(action, ACTION_LOW_NORM_7D, ACTION_HIGH_NORM_7D)
+    norm = (action - ACTION_LOW_NORM_7D) / (ACTION_HIGH_NORM_7D - ACTION_LOW_NORM_7D)
+    return norm * (ACTION_HIGH_PHYS_7D - ACTION_LOW_PHYS_7D) + ACTION_LOW_PHYS_7D
 
 
 class Policy:
@@ -85,8 +111,7 @@ class Policy:
             # Minimal safe fallback: zero action in physical units.
             return np.zeros(ACTION_DIM, dtype=np.float32)
 
-        # This shared flatten helper is only a starter example, not a required rule.
-        flat = flatten_dict_observation(observation).reshape(1, -1)
+        flat = _policy_observation(observation)
         try:
             action = self.session.run([self.output_name], {self.input_name: flat})[0]
         except Exception:
@@ -95,6 +120,7 @@ class Policy:
         action = np.asarray(action, dtype=np.float32).reshape(-1)
 
         if action.size == ACTION_DIM_7:
+            action = _normalized_7d_to_physical(action)
             action = action_7d_to_12d(action)
         if action.size != ACTION_DIM:
             raise ValueError(f"Policy must return 12D or 7D action, got size {action.size}")
