@@ -43,7 +43,6 @@ fusion-control-comp/
 │   └── __init__.py
 ├── examples/        # 示例脚本
 │   ├── example_xpt_scheme1.py
-│   ├── example_xpt_isoflux.py
 │   ├── example_xpt_reward.py
 │   ├── xpt_example_common.py
 │   ├── example_reward.py
@@ -366,7 +365,6 @@ options = {
 - `examples/custom_reference_reset.py`：自定义 reset 参数与 trajectory reference
 - `examples/example_reward.py`：starter reward 示例
 - `examples/example_xpt_scheme1.py`：XPT 方案一 **20 维 baseline 特征**，**仅真实环境观测**
-- `examples/example_xpt_isoflux.py`：方案二残差与极向场，**仅真实环境观测**
 - `examples/example_xpt_reward.py`：等磁通 `reward_fn` 多步交互（**需仿真器**）
 - `examples/xpt_example_common.py`：示例共用的 HFM 连接与取观测
 
