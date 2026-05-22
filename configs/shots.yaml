@@ -2,7 +2,7 @@
 # This YAML is the single source of truth for environment shot presets.
 
 "13844_500":
-  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.mat"
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.2.mat"
   LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_13844_500_v2.mat"
   reset_defaults:
     signeo: 7.5e6
@@ -10,7 +10,7 @@
     q0: 1.5
 
 "13844_600":
-  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.mat"
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.2.mat"
   LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_13844_600_v2.mat"
   reset_defaults:
     signeo: 9e6
@@ -18,7 +18,7 @@
     q0: 1.35
 
 "15892_400":
-  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.mat"
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.2.mat"
   LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_15892_400_v2.mat"
   reset_defaults:
     signeo: 5.2e6
@@ -26,7 +26,7 @@
     q0: 1.8
 
 "15892_500":
-  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.mat"
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v2.2.mat"
   LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_15892_500_v2.mat"
   reset_defaults:
     signeo: 6e6
