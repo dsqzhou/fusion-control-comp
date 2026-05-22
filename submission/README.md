@@ -65,6 +65,15 @@ submission/
 - `POST /reset`：开始新 episode，内部会调 `Policy.reset()`
 - `POST /act`：传入当前 observation，返回 `{"ok": true, "action": [12 维]}`
 
+## 复赛双模型服务
+
+复赛允许在同一个提交镜像中启动两个策略服务：
+
+- `service1.py` / `inference1.py`：用于 `F1`，默认读取 `model/policy1.onnx`
+- `service2.py` / `inference2.py`：用于 `F2a`、`F2b`，默认读取 `model/policy2.onnx`
+
+`start_infer.sh` 会同时启动两个服务，默认端口分别为 `8000` 和 `8001`。评测脚本会将 `F1` 路由到第一个服务，将 `F2a/F2b` 路由到第二个服务。如果只提交一个通用模型，也可以放置 `model/policy.onnx`，两个 inference 文件会在找不到各自专用模型时回退到该文件。
+
 ---
 
 ## 构建与提交

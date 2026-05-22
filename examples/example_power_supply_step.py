@@ -1,4 +1,4 @@
-"""Plot power-supply step response: U_set step -> delayed U_real."""
+"""Plot fused power-supply step response."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import numpy as np
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 
-from environment.power_supply import PowerSupplyModel, simulate_delay_step  # noqa: E402
+from environment.power_supply import PowerSupplyModel  # noqa: E402
 
 
 def main() -> None:
@@ -26,7 +26,7 @@ def main() -> None:
     args = parser.parse_args()
 
     dt = 0.001
-    duration_s = 0.04
+    duration_s = 0.08
     n = int(duration_s / dt)
     t = np.arange(n) * dt
 
@@ -34,15 +34,22 @@ def main() -> None:
     step_at = 0.01
     u_set = np.where(t >= step_at, u_high, u_low)
 
-    K, b = 1.0, 0.0
-    delay_s = 0.0035
-    u_real = simulate_delay_step(u_set, dt, K=K, delay_s=delay_s, b=b)
+    model = PowerSupplyModel(
+        slopes=np.ones(12),
+        intercepts=np.zeros(12),
+        max_change_per_step=np.full(12, np.inf),
+        delay_s=np.full(12, 0.0035),
+        seed=0,
+    )
+    model.reset()
+    u_real = np.array([model.step(np.full(12, u))[0] for u in u_set])
 
+    delay_s = 0.0035
     fig, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
     ax0 = axes[0]
-    ax0.plot(t * 1000, u_set, "C0--", linewidth=1.5, label=r"$U_{set}$ (policy action)")
-    ax0.plot(t * 1000, u_real, "C3-", linewidth=2.0, label=r"$U_{real}$ (to environment)")
+    ax0.plot(t * 1000, u_set, "C0--", linewidth=1.5, label=r"$U_{set}$")
+    ax0.plot(t * 1000, u_real, "C3-", linewidth=2.0, label=r"$U_{real}$")
     ax0.axvline(step_at * 1000, color="gray", linestyle=":", alpha=0.6)
     ax0.axvline(
         (step_at + delay_s) * 1000,
@@ -52,14 +59,13 @@ def main() -> None:
         label=f"delay L={delay_s * 1000:.1f} ms",
     )
     ax0.set_ylabel("Voltage (arb. unit)")
-    ax0.set_title(rf"Power supply: $G(s)=K e^{{-Ls}}$, $K={K}$, $L={delay_s * 1000:.1f}$ ms, $dt=1$ ms")
+    ax0.set_title(r"Delay $\rightarrow$ rate limit $\rightarrow$ PSM (identity PSM shown)")
     ax0.legend(loc="lower right")
     ax0.grid(True, alpha=0.3)
 
     ax1 = axes[1]
     ax1.plot(t * 1000, u_real - u_set, "C4-", linewidth=1.5, label=r"$U_{real} - U_{set}$")
     ax1.axhline(0, color="gray", linewidth=0.8)
-    ax1.axvline((step_at + delay_s) * 1000, color="C2", linestyle="--", alpha=0.7)
     ax1.set_xlabel("Time (ms)")
     ax1.set_ylabel("Tracking error")
     ax1.legend(loc="upper right")
@@ -69,16 +75,6 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.output, dpi=150)
     print(f"Saved: {args.output}")
-
-    model = PowerSupplyModel(
-        K=np.full(12, K),
-        b=np.full(12, b),
-        delay_s=np.full(12, delay_s),
-        seed=0,
-    )
-    model.reset()
-    y12 = np.array([model.step(np.full(12, ui))[0] for ui in u_set])
-    assert np.allclose(y12, u_real, atol=1e-9)
 
     if not args.no_show:
         plt.show()

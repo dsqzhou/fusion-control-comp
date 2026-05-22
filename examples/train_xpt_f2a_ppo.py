@@ -473,6 +473,7 @@ def main() -> int:
     parser.add_argument("--save-dir", type=Path, default=ROOT / "results" / "xpt_f2a_ppo")
     parser.add_argument("--use-12d-action", action="store_true", help="Debug only; default uses normalized 7D action.")
     parser.add_argument("--curriculum-timesteps", type=int, default=100_000)
+    parser.add_argument("--load-path", type=Path, default=None, help="Resume from an SB3 PPO checkpoint.")
     parser.add_argument("--tensorboard", action="store_true", help="Enable tensorboard logging if installed")
     args = parser.parse_args()
 
@@ -529,25 +530,30 @@ def main() -> int:
     )
     env = VecMonitor(env, filename=str(args.save_dir / "monitor.csv"))
 
-    model = PPO(
-        "MlpPolicy",
-        env,
-        learning_rate=3e-4,
-        n_steps=100,
-        batch_size=400,
-        n_epochs=5,
-        gamma=0.995,
-        gae_lambda=0.95,
-        clip_range=0.2,
-        ent_coef=0.002,
-        vf_coef=0.5,
-        max_grad_norm=0.5,
-        target_kl=0.02,
-        policy_kwargs={"net_arch": [128, 128]},
-        verbose=1,
-        tensorboard_log=str(args.save_dir / "tb") if args.tensorboard else None,
-        device="cpu",
-    )
+    if args.load_path is not None:
+        print(f"[resume] loading model from {args.load_path}")
+        model = PPO.load(args.load_path, env=env, device="cpu", print_system_info=False)
+        print(f"[resume] model.num_timesteps={model.num_timesteps}")
+    else:
+        model = PPO(
+            "MlpPolicy",
+            env,
+            learning_rate=3e-4,
+            n_steps=100,
+            batch_size=400,
+            n_epochs=5,
+            gamma=0.995,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            ent_coef=0.002,
+            vf_coef=0.5,
+            max_grad_norm=0.5,
+            target_kl=0.02,
+            policy_kwargs={"net_arch": [128, 128]},
+            verbose=1,
+            tensorboard_log=str(args.save_dir / "tb") if args.tensorboard else None,
+            device="cpu",
+        )
     checkpoint_cb = CheckpointCallback(
         save_freq=max(1, int(args.checkpoint_freq) // max(1, len(ports))),
         save_path=str(args.save_dir / "checkpoints"),
@@ -561,7 +567,9 @@ def main() -> int:
             self._last_progress = -1.0
 
         def _on_training_start(self) -> None:
-            self.training_env.env_method("set_curriculum_progress", 0.0)
+            progress = float(np.clip(self.model.num_timesteps / self.curriculum_timesteps, 0.0, 1.0))
+            self.training_env.env_method("set_curriculum_progress", progress)
+            self._last_progress = progress
 
         def _on_step(self) -> bool:
             progress = float(np.clip(self.num_timesteps / self.curriculum_timesteps, 0.0, 1.0))
@@ -571,7 +579,12 @@ def main() -> int:
             return True
 
     callbacks = CallbackList([checkpoint_cb, CurriculumCallback(args.curriculum_timesteps)])
-    model.learn(total_timesteps=args.total_timesteps, callback=callbacks, progress_bar=False)
+    model.learn(
+        total_timesteps=args.total_timesteps,
+        callback=callbacks,
+        progress_bar=False,
+        reset_num_timesteps=args.load_path is None,
+    )
     model.save(str(args.save_dir / "ppo_xpt_f2a_latest"))
     env.close()
     print(f"saved: {args.save_dir / 'ppo_xpt_f2a_latest.zip'}")

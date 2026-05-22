@@ -6,6 +6,7 @@ FROM ${BASE_IMAGE}
 # 环境变量：submission 服务端口与 Python 路径（不可改）
 ENV SUBMISSION_HOST=0.0.0.0 \
     SUBMISSION_PORT=8000 \
+    SUBMISSION_PORT2=8001 \
     SAISDATA_ROOT=/saisdata/11 \
     INFER_RESULT_PATH=/saisresult/infer_result.json \
     SAISDATA_SHOTS_CONFIG=/saisdata/11/inference/shots.yaml \
@@ -31,7 +32,7 @@ RUN chmod +x /app/submission/start_infer.sh
 COPY submission/run.sh /app/run.sh
 RUN chmod +x /app/run.sh
 
-EXPOSE 8000 5558
+EXPOSE 8000 8001 5558
 
 # 容器默认不跑评测，赛事方通过执行 /app/run.sh 启动
 ENTRYPOINT ["sleep", "infinity"]

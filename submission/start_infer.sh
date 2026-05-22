@@ -8,7 +8,9 @@ SAISDATA_ROOT="${SAISDATA_ROOT:-/saisdata/11}"
 MCR_ROOT="${MCR_ROOT:-/opt/matlabruntime/R2025a}"
 SUBMISSION_HOST="${SUBMISSION_HOST:-0.0.0.0}"
 SUBMISSION_PORT="${SUBMISSION_PORT:-8000}"
+SUBMISSION_PORT2="${SUBMISSION_PORT2:-8001}"
 SERVICE_URL="${SERVICE_URL:-http://127.0.0.1:${SUBMISSION_PORT}}"
+SERVICE_URL2="${SERVICE_URL2:-http://127.0.0.1:${SUBMISSION_PORT2}}"
 INFER_RESULT_PATH="${INFER_RESULT_PATH:-/saisresult/infer_result.json}"
 ENTRYPOINT_LOG="${ENTRYPOINT_LOG:-/saisresult/entrypoint.log}"
 HFM_LOG="${HFM_LOG:-/saisresult/hfm_socket_server.log}"
@@ -23,6 +25,7 @@ export AGREE_TO_MATLAB_RUNTIME_LICENSE="${AGREE_TO_MATLAB_RUNTIME_LICENSE:-yes}"
 export SAISDATA_SHOTS_CONFIG="${SAISDATA_SHOTS_CONFIG:-${SAISDATA_ROOT}/inference/shots.yaml}"
 export SUBMISSION_HOST
 export SUBMISSION_PORT
+export SUBMISSION_PORT2
 
 mkdir -p /saisresult "$(dirname "${INFER_RESULT_PATH}")" "$(dirname "${HFM_LOG}")" "$(dirname "${SUBMISSION_LOG}")" "$(dirname "${RUN_TEST_LOG}")"
 touch "${ENTRYPOINT_LOG}" "${HFM_LOG}" "${SUBMISSION_LOG}" "${RUN_TEST_LOG}"
@@ -57,6 +60,9 @@ export PYTHONPATH="/app:${SAISDATA_ROOT}/standalone-env:${SAISDATA_ROOT}/standal
 cleanup() {
   if [[ -n "${SUBMISSION_PID:-}" ]]; then
     kill "${SUBMISSION_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${SUBMISSION_PID2:-}" ]]; then
+    kill "${SUBMISSION_PID2}" 2>/dev/null || true
   fi
   if [[ -n "${HFM_PID:-}" ]]; then
     kill "${HFM_PID}" 2>/dev/null || true
@@ -126,16 +132,23 @@ echo "[start_infer] starting Environment service..." >&2
 HFM_PID=$!
 wait_for_tcp 127.0.0.1 5558 120
 
-# --- 6. 启动选手 submission 服务 ---
-echo "[start_infer] starting submission service..." >&2
-python3 /app/submission/service.py >"${SUBMISSION_LOG}" 2>&1 &
+# --- 6. 启动选手 submission 服务（F1 与 F2 分别使用两个策略服务）---
+echo "[start_infer] starting submission service1 (policy1 for F1)..." >&2
+python3 /app/submission/service1.py >"${SUBMISSION_LOG}" 2>&1 &
 SUBMISSION_PID=$!
 wait_for_http_health "${SERVICE_URL}" 30
+
+echo "[start_infer] starting submission service2 (policy2 for F2a/F2b)..." >&2
+SUBMISSION_LOG2="${SUBMISSION_LOG%.log}_2.log"
+python3 /app/submission/service2.py >"${SUBMISSION_LOG2}" 2>&1 &
+SUBMISSION_PID2=$!
+wait_for_http_health "${SERVICE_URL2}" 30
 
 # --- 7. 运行评测（评测机 run_test.py，输出路径固定为 /saisresult/infer_result.json）---
 echo "[start_infer] running inference evaluation..." >&2
 python3 "${SAISDATA_ROOT}/inference/run_test.py" \
   --no-build \
   --service-url "${SERVICE_URL}" \
+  --service-url2 "${SERVICE_URL2}" \
   --output "${INFER_RESULT_PATH}" \
   "$@" 2>&1 | tee -a "${RUN_TEST_LOG}"
