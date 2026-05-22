@@ -16,11 +16,13 @@ def _resolve_shot_config_path() -> Path:
     if env_path:
         candidates.append(Path(env_path))
 
+    pkg_root = Path(__file__).resolve().parents[1]
+    candidates.append(pkg_root / "configs" / "shots.yaml")
     saisdata_root = Path(__file__).resolve().parents[2]
     candidates.append(saisdata_root / "inference" / "shots.yaml")
     saisdata_env = os.environ.get("SAISDATA_ROOT", "/saisdata/11")
     candidates.append(Path(saisdata_env) / "inference" / "shots.yaml")
-    candidates.append(Path(__file__).resolve().parents[1] / "configs" / "shots.yaml")
+    candidates.append(Path("/saisdata/inference/shots.yaml"))
 
     for path in candidates:
         if path.exists():

@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from .docker_socket_predictor import DockerSocketPredictor
+from .power_supply import PowerSupplyModel
 from .shot_registry import SHOT_CONFIG_PATH, SHOT_REGISTRY, get_fge_init_config_for_shot
 
 VECTOR_OBSERVATION_LENGTHS: dict[str, int] = {
@@ -34,6 +35,7 @@ class HFMSocketPredictor(DockerSocketPredictor):
     ):
         config = config or {}
         super().__init__(name, config)
+        self._power_supply = PowerSupplyModel()
 
     def _get_init_config(self, config: dict[str, Any]) -> dict[str, Any]:
         if "fge_init_config" in config:
@@ -74,6 +76,7 @@ class HFMSocketPredictor(DockerSocketPredictor):
         action = np.asarray(action, dtype=float)
         if action.size != 12:
             raise ValueError(f"action must be 12-dimensional, got shape {action.shape}")
+        action = self._power_supply.step(action)
         raw = self._protocol_step(action)
         return self._parse_observation(raw)
 
@@ -93,6 +96,7 @@ class HFMSocketPredictor(DockerSocketPredictor):
             reset_params["q0"] = q0
 
         raw = super().reset(**reset_params) if reset_params else super().reset()
+        self._power_supply.reset()
         return self._parse_observation(raw)
 
     def get_model_info(self) -> dict[str, Any]:

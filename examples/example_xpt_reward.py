@@ -1,13 +1,7 @@
 """
-示例：在 HFMSimulator 上使用基于 XPT 等磁通残差的 reward_fn（本地训练）。
+示例：用 ``extract_xpt_observation_pack`` 构造简单逐步惩罚（需仿真器）。
 
-**全程与真实环境交互**（reset + 多步随机动作）；观测与 reward 均来自仿真器。
-
-用法：
-  cd fusion-control-comp
-  python tools/start_simulator.py -n 1 -y
-  python examples/example_xpt_reward.py
-  python examples/example_xpt_reward.py --steps 5 --config configs/env_default.yaml
+等磁通 scheme2 接口已移除；请用 pack 中的 ``x_flux_diff``、``x_dpsi_dr/dz``、打击点坐标等自行设计 reward。
 """
 
 from __future__ import annotations
@@ -17,7 +11,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = Path(__file__).resolve().parent
@@ -25,90 +18,56 @@ sys.path.insert(0, str(ROOT))
 if str(EXAMPLES) not in sys.path:
     sys.path.append(str(EXAMPLES))
 
-from environment import HFMSimulator  # noqa: E402
-from environment.xpt_utils import extract_target_isoflux_points, extract_target_xpoints, isoflux_residuals_scheme2  # noqa: E402
-from xpt_example_common import DEFAULT_CONFIG_PATH, connection_hint  # noqa: E402
+from environment.xpt_utils import (  # noqa: E402
+    extract_target_strike_points,
+    extract_target_xpoints,
+    extract_xpt_observation_pack,
+)
+from xpt_example_common import DEFAULT_CONFIG_PATH, connection_hint, load_initial_and_current_observations  # noqa: E402
 
 
-class XptIsofluxReward:
-    """把 reset 时刻提取的目标 X 点位固定下来，供后续 step 计算 reward。"""
-
-    def __init__(self) -> None:
-        self.target_rB: np.ndarray | None = None
-        self.target_zB: np.ndarray | None = None
-        self.target_rX: np.ndarray | None = None
-        self.target_zX: np.ndarray | None = None
-
-    def set_targets_from_initial_obs(self, initial_obs: dict, slots: int = 4, lcfs_step: int = 4) -> None:
-        self.target_rB, self.target_zB, _ = extract_target_isoflux_points(initial_obs, lcfs_step=lcfs_step)
-        self.target_rX, self.target_zX, _ = extract_target_xpoints(initial_obs, slots=slots)
-
-    def __call__(
-        self,
-        observation: dict,
-        action: np.ndarray,
-        terminated: bool,
-        truncated: bool,
-        info: dict | None = None,
-    ) -> float:
-        if terminated:
-            return -10.0
-        if (
-            self.target_rB is None
-            or self.target_zB is None
-            or self.target_rX is None
-            or self.target_zX is None
-        ):
-            raise RuntimeError("XptIsofluxReward targets are not initialized from reset observation")
-        res, _ = isoflux_residuals_scheme2(
-            observation,
-            target_rB=self.target_rB,
-            target_zB=self.target_zB,
-            target_rX=self.target_rX,
-            target_zX=self.target_zX,
-        )
-        mask = np.isfinite(res)
-        if not np.any(mask):
-            return -1.0
-        return float(-np.mean(np.abs(res[mask])))
+def simple_xpt_penalty(pack) -> float:
+    """演示：位置/磁通/梯度/打击点槽位的粗惩罚（非官方评测）。"""
+    v = pack["x_valid"]
+    pos = np.mean(np.abs(pack["x_r"]) + np.abs(pack["x_z"])) * np.mean(v) if np.any(v) else 1.0
+    flux = float(np.mean(pack["x_flux_diff"][v > 0.5])) if np.any(v) else 1.0
+    grad = float(np.mean(np.abs(pack["x_dpsi_dr"][v > 0.5]) + np.abs(pack["x_dpsi_dz"][v > 0.5]))) if np.any(v) else 1.0
+    strike = float(np.mean(pack["strike_valid"])) if pack["strike_n_use"] else 0.5
+    return 0.3 * pos + 0.4 * flux + 0.2 * grad + 0.1 * (1.0 - strike)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="XPT 等磁通 reward 与真实环境交互")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
-    parser.add_argument("--steps", type=int, default=3, help="reset 后执行的步数")
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--steps", type=int, default=3)
     args = parser.parse_args()
 
-    with open(args.config, encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    reward_fn = XptIsofluxReward()
-    env = HFMSimulator(config, reward_fn=reward_fn)
     try:
-        obs, _ = env.reset(seed=args.seed)
-        reward_fn.set_targets_from_initial_obs(obs, slots=4, lcfs_step=4)
-        print("OK: reset 成功，开始 step。")
-        print("target LCFS isoflux points from reset:")
-        print("  target_rB:", reward_fn.target_rB)
-        print("  target_zB:", reward_fn.target_zB)
-        print("target X points from reset:")
-        print("  target_rX:", reward_fn.target_rX)
-        print("  target_zX:", reward_fn.target_zX)
-        for i in range(args.steps):
-            a = env.action_space.sample()
-            obs, r, term, trunc, _ = env.step(a)
-            print(f"  step {i + 1}: reward = {r:.6f}, terminated = {term}, truncated = {trunc}")
-            if term or trunc:
-                break
+        initial_obs, _ = load_initial_and_current_observations(args.config, seed=0, steps_after_reset=0)
     except (ConnectionError, OSError, TimeoutError) as exc:
         print(connection_hint(args.config))
-        print(f"[错误] {type(exc).__name__}: {exc}")
+        print(exc)
         return 1
-    finally:
-        env.close()
 
-    print("OK: 与环境交互完成。")
+    ref_rX, ref_zX, _ = extract_target_xpoints(initial_obs, slots=4)
+    ref_rS, ref_zS, _, _ = extract_target_strike_points(initial_obs, strike_slots=8)
+
+    import yaml
+    from environment import HFMSimulator
+
+    with open(args.config, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    env = HFMSimulator(cfg)
+    obs, _ = env.reset(seed=0)
+    for t in range(args.steps):
+        action = env.action_space.sample()
+        obs, reward, term, trunc, _ = env.step(action)
+        pack = extract_xpt_observation_pack(obs, ref_rX, ref_zX, ref_rS, ref_zS, strike_slots=8)
+        pen = simple_xpt_penalty(pack)
+        print(f"step {t}: env_reward={reward:.4f} demo_xpt_penalty={pen:.4f} nX={pack['nX']}")
+        if term or trunc:
+            break
+    env.close()
     return 0
 
 

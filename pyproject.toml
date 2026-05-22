@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 baseline = ["stable-baselines3>=2.0", "pyyaml>=5.0", "onnx>=1.16", "torch>=2.0"]
+xpt = ["matplotlib>=3.5", "scipy>=1.9"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -338,9 +338,12 @@ sqrt(Br^2 + Bz^2) ≈ 0
 
 以下示例都需要 **已启动的 HFM 服务**，并通过 `HFMSimulator` 从真实环境拉取观测，不使用合成数据。
 
-- `examples/example_xpt_scheme1.py`：`reset` 提取基础形状目标和目标 X 点位，再对当前观测打印方案一 20 维 baseline 特征。
-- `examples/example_xpt_isoflux.py`：`reset` 提取 8 个等磁通目标点位和目标 X 点位，再打印方案二 12 点等磁通残差与目标 X 点位上的极向场模。
-- `examples/example_xpt_reward.py`：在 `reset` 时固定 8 个等磁通目标点位和目标 X 点位，再给出基于 `isoflux_residuals_scheme2` 的本地 `reward_fn` 示例。
+- `examples/example_xpt_scheme1.py`：最小特征提取示例。用于展示如何从 reset 初态固定 reference X 点/打击点，再把当前观测转成 XPT 特征向量，适合选手快速理解观测接口。
+- `examples/example_xpt_reward.py`：奖励设计示例。用于展示如何基于 `extract_xpt_observation_pack` 中的位置、磁通、梯度和打击点信息构造本地 shaping penalty；它不是官方评测函数。
+- `examples/example_xpt_targets.py`：目标导出示例。用于从当前 `shot_id` 的 reset 初态提取 reference X 点和打击点，并写入 `configs/xpt_reference_targets.json` 供训练或调试复用。
+- `examples/train_xpt_f2a_ppo.py`：完整训练脚本示例。它会并行连接多个 HFM 环境，构造 F-2a/F-2b 风格的时序目标、reward、动作映射、checkpoint 和日志输出。
 
-共用逻辑见 `examples/xpt_example_common.py`。
+前三个脚本偏“解释和观测检查”：单次或少量交互，帮助理解 XPT 目标、特征和 reward 组件。`train_xpt_f2a_ppo.py` 偏“训练工程入口”：包含并行采样、PPO 依赖、训练产物保存和更完整的任务流程，不适合作为最小接口示例。
+
+共用连接与 reset 逻辑见 `examples/xpt_example_common.py`。
 
