@@ -1,47 +1,49 @@
-# Power Supply Model
+# 电源模型
 
-This repository includes a lightweight power-supply response model between the voltage command produced by a policy and the voltage actually applied to the coils.
+本环境加入了一个轻量的电源响应模型，用来描述控制策略给出的电压指令与装置实际获得电压之间的差异。
 
-In the real device, the commanded voltage is not always obtained immediately or exactly. Static gain, offset, communication delay, control latency, and actuator dynamics can create a gap between:
+在真实装置中，电源不会总是“立刻、完全、无误差”地输出控制器给定的电压。静态增益、偏置、通信延迟、控制延迟和执行链路动态都会让下面两者之间存在一定 gap：
 
 ```text
-U_set   : voltage command from the controller
-U_real  : voltage delivered by the power supply
+U_set   : 控制器给出的电压指令
+U_real  : 电源实际输出到线圈的电压
 ```
 
-The current implementation exposes this feature through `environment.power_supply.PowerSupplyModel`. `HFMSocketPredictor.step()` passes the 12-dimensional action through the model before sending it to the HFM socket predictor.
+当前实现位于 `environment.power_supply.PowerSupplyModel`。`HFMSocketPredictor.step()` 会先把 12 维动作经过电源模型，再发送给 HFM predictor。
 
-## Current Behavior
+## 当前行为
 
-- The model is channel-wise for 12 coil-voltage channels.
-- Each channel applies a static gain `K` and offset `b`.
-- Each channel has a small response delay, sampled on reset by default.
-- The simulator step is treated as `1 ms`.
-- `reset()` clears the delay buffer so each episode starts from a clean power-supply state.
+- 模型按 12 路线圈电压通道分别处理。
+- 每个通道包含静态增益 `K` 和偏置 `b`。
+- 每个通道包含一个小的响应延迟，默认在 `reset()` 时重新采样。
+- 仿真步长按 `1 ms` 处理。
+- `reset()` 会清空延迟缓存，使每个 episode 从干净的电源状态开始。
 
-Conceptually:
+可以把链路理解为：
 
 ```text
-policy action U_set
-  -> power supply response model
-  -> actual voltage U_real
+策略动作 U_set
+  -> 电源响应模型
+  -> 实际电压 U_real
   -> HFM predictor
 ```
 
-This makes the environment slightly closer to the device: policies should not assume that a voltage command is applied perfectly at the same step.
+因此，策略不应假设给出的电压指令会在同一步被装置完全获得。这个特性让环境更接近真实装置中的执行链路。
 
-## Example
+## 示例
 
-Use the standalone example to visualize a simple step response:
+可以运行下面的示例查看简单阶跃响应：
 
 ```bash
 python examples/example_power_supply_step.py
 ```
 
-The generated response figure is:
+生成的响应图：
 
 ![Power supply step response](power_supply_step_response.png)
 
-## Notes For Participants
+## 给选手的说明
 
-This model is intended as an engineering feature for the competition environment, not as an official scoring formula. Participants can treat it as part of the environment dynamics: the action is still a 12-dimensional voltage command, but the plant receives the delayed/gain-adjusted voltage.
+电源模型是评估环境中一定存在的环境动态，不是可选开关，也不是官方评分公式。选手仍然输出 12 维电压指令，但实际进入 HFM predictor 的电压会经过电源响应模型处理。
+
+评估时电源延时会带有随机性，因此本地结果不应假设某个固定延时完全可复现。选手可以在本地基于 `PowerSupplyModel` 自行模拟不同延时下的策略表现，用于提高策略对执行链路 gap 的鲁棒性。
