@@ -129,6 +129,22 @@ class DockerSocketPredictor:
             raise ConnectionError("Not connected")
         self._socket.sendall(f"{line}\n".encode())
 
+    def _send_lines(self, *lines: str) -> None:
+        """Send multiple lines as a single sendall() so they arrive atomically.
+
+        The MATLAB server peeks for an optional params/action line shortly after
+        reading the command line. If the two sendall() calls from the client
+        land in separate TCP segments with a gap >~10ms (easily induced by OS
+        jitter, GC, or heavy load), the server misses the follow-up line and
+        later interprets it as the next command, which poisons the stream and
+        causes the next `step()` to receive `ERROR: Unknown command\n`,
+        surfacing as `json.JSONDecodeError: Expecting value: line 1 column 1`.
+        """
+        if self._socket is None:
+            raise ConnectionError("Not connected")
+        payload = "".join(f"{line}\n" for line in lines).encode()
+        self._socket.sendall(payload)
+
     def _send_json(self, data: dict[str, Any] | Any) -> None:
         if hasattr(data, "to_dict"):
             data = data.to_dict()
@@ -143,22 +159,25 @@ class DockerSocketPredictor:
         return line.rstrip("\n")
 
     def _protocol_init(self, init_config: dict[str, Any]) -> None:
-        self._send_line("INIT")
-        self._send_json(init_config)
+        if hasattr(init_config, "to_dict"):
+            init_config = init_config.to_dict()
+        self._send_lines("INIT", json.dumps(init_config))
         response = self._read_line()
         if response != "INIT_OK":
             raise ConnectionError(f"Initialization failed: {response}")
         self._is_initialized = True
 
     def _protocol_reset(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        self._send_line("RESET")
         if params:
-            self._send_json(params)
+            if hasattr(params, "to_dict"):
+                params = params.to_dict()
+            self._send_lines("RESET", json.dumps(params))
+        else:
+            self._send_line("RESET")
         return json.loads(self._read_line())
 
     def _protocol_step(self, action: np.ndarray) -> dict[str, Any]:
-        self._send_line("STEP")
-        self._send_line(" ".join(map(str, action)))
+        self._send_lines("STEP", " ".join(map(str, action)))
         return json.loads(self._read_line())
 
     def _protocol_exit(self) -> None:

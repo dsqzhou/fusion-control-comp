@@ -453,16 +453,16 @@ python3 evaluate.py ../results/target.json ../results/infer_result.json
 
 ### 7 维到 12 维的映射逻辑（参考）
 
-核心假设：中间 10 维线圈按 5 组对称对处理，每组共享同一电压。映射关系如下：
+核心假设：中间 10 维线圈为上下对称线圈，按 5 组对称处理，每组共享同一电压。映射关系如下：
 
 ```
 v[0]  → u[0]        # 第 1 维单独控制
-v[1]  → u[1] = u[11] # 第 2 和第 12 维共享
-v[2]  → u[2] = u[10]
-v[3]  → u[3] = u[9]
-v[4]  → u[4] = u[8]
-v[5]  → u[5] = u[7]
-v[6]  → u[6]        # 第 7 维单独控制
+v[1]  → u[1] = u[2] # 第 2 和第 3 维共享
+v[2]  → u[3] = u[4]
+v[3]  → u[5] = u[6]
+v[4]  → u[7] = u[8]
+v[5]  → u[9] = u[10]
+v[6]  → u[11]        # 第 7 维为快控线圈电压，单独控制
 ```
 
 这种对称保持的做法通常更有利于维持等离子体整体稳定，但**仅供参考，不是比赛规则**。
@@ -488,3 +488,15 @@ v[6]  → u[6]        # 第 7 维单独控制
 在 Windows 本地联调时，若出现 `libomp.dll` 与 `libiomp5md.dll` 冲突（OpenMP runtime duplicate），可临时设置：
 ```bash
 set KMP_DUPLICATE_LIB_OK=TRUE
+```
+
+## 已知问题修复
+
+### reset 后偶发 `JSONDecodeError: Expecting value: line 1 column 1 (char 0)`（已修复）
+
+- **现象**：`env.reset()` 看似成功，紧接着第一次 `env.step()` 抛 `json.decoder.JSONDecodeError`，报错点在 `environment/docker_socket_predictor.py` 的 `return json.loads(self._read_line())`。
+- **原因**：客户端把 `RESET\n` 与参数行 `{...}\n` 分两次 `sendall()` 发出，仿真器在收到 `RESET\n` 后只对参数做约 1–10 ms 的 peek。当 OS 抖动 / GC / Docker Desktop 网络栈让两次 `sendall` 之间间隔 ≥ 10 ms 时，参数行错位为下一条命令，污染输入流，下一次 `step()` 实际读到 `ERROR: Unknown command\n`，于是 `json.loads` 失败。
+- **修复**：客户端改为单次原子 `sendall()`（`environment/docker_socket_predictor.py` 中新增 `_send_lines`，`INIT/RESET/STEP` 的命令+负载合并发送）。
+- **是否需要选手改代码**：**不需要**。`reset()` / `step()` 接口与返回值完全保持向后兼容。
+- **如何拿到修复**：拉取最新代码后重新 `pip install -e .`（或重新拉取本目录）即可。
+- **如何自测**：旧版本机器上若曾偶发此错，可用 `examples/run_random_policy.py` 多次跑通 reset+step；如仍能复现，请联系赛事方并提供 `docker logs <hfm-matlab-server>` 末尾若干行。

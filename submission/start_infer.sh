@@ -42,6 +42,17 @@ if [[ ! -f "${SAISDATA_ROOT}/inference/run_test.py" ]]; then
   exit 1
 fi
 
+# --- 2.5 将 OSS 挂载数据一次性 copy 到容器本地，避免后续频繁读取导致 OSS 连接中断 ---
+LOCAL_SAISDATA="/saisdata_local/11"
+echo "[start_infer] copying ${SAISDATA_ROOT} -> ${LOCAL_SAISDATA} ..." >&2
+mkdir -p "${LOCAL_SAISDATA}"
+cp -a "${SAISDATA_ROOT}/." "${LOCAL_SAISDATA}/"
+echo "[start_infer] copy done, switching SAISDATA_ROOT to local." >&2
+SAISDATA_ROOT="${LOCAL_SAISDATA}"
+export SAISDATA_ROOT
+export SAISDATA_SHOTS_CONFIG="${SAISDATA_ROOT}/inference/shots.yaml"
+export PYTHONPATH="/app:${SAISDATA_ROOT}/standalone-env:${SAISDATA_ROOT}/standalone-env/environment"
+
 # --- 3. 退出时清理子进程 ---
 cleanup() {
   if [[ -n "${SUBMISSION_PID:-}" ]]; then
