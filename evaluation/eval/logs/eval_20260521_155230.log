@@ -1,0 +1,42 @@
+Evaluation detail: {
+  "total_score": 100.0,
+  "task_scores": {
+    "F1": 40.0,
+    "F2a": 30.0,
+    "F2b": 30.0
+  },
+  "task_metric_scores": {
+    "F1": {
+      "Ip": 12.0,
+      "LCFS": 28.0
+    },
+    "F2a": {
+      "Ip": 9.0,
+      "LCFS": 7.0,
+      "X": 4.0,
+      "strike": 4.0,
+      "psiX": 2.0,
+      "X2": 2.0,
+      "psiX2": 2.0
+    },
+    "F2b": {
+      "Ip": 9.0,
+      "LCFS": 7.0,
+      "X": 4.0,
+      "strike": 4.0,
+      "psiX": 2.0,
+      "X2": 2.0,
+      "psiX2": 2.0
+    }
+  },
+  "K_eff": {
+    "F1": 300,
+    "F2a": 500,
+    "F2b": 500
+  },
+  "gamma": {
+    "F1": 1.0,
+    "F2a": 1.0,
+    "F2b": 1.0
+  }
+}
