@@ -23,10 +23,10 @@ EPSILON_MAX: Dict[str, float] = {
     METRIC_IP: 0.05,
     METRIC_LCFS: 3.0,
     METRIC_X: 3.0,
-    METRIC_STRIKE: 3.0,
-    METRIC_PSIX: 0.05,
+    METRIC_STRIKE: 10.0,
+    METRIC_PSIX: 0.003,
     METRIC_X2: 5.0,
-    METRIC_PSIX2: 0.10,
+    METRIC_PSIX2: 0.005,
 }
 
 TASK_IDS: List[str] = ["F1", "F2a", "F2b"]
@@ -42,25 +42,25 @@ TASK_WEIGHTS: Dict[str, Dict[str, Any]] = {
     "F2a": {
         "total": 30,
         "metrics": {
-            METRIC_IP: 9,
-            METRIC_LCFS: 7,
+            METRIC_IP: 6,
+            METRIC_LCFS: 6,
             METRIC_X: 4,
-            METRIC_STRIKE: 4,
-            METRIC_PSIX: 2,
-            METRIC_X2: 2,
-            METRIC_PSIX2: 2,
+            METRIC_STRIKE: 3,
+            METRIC_PSIX: 4,
+            METRIC_X2: 3,
+            METRIC_PSIX2: 4,
         },
     },
     "F2b": {
         "total": 30,
         "metrics": {
-            METRIC_IP: 9,
-            METRIC_LCFS: 7,
+            METRIC_IP: 6,
+            METRIC_LCFS: 6,
             METRIC_X: 4,
-            METRIC_STRIKE: 4,
-            METRIC_PSIX: 2,
-            METRIC_X2: 2,
-            METRIC_PSIX2: 2,
+            METRIC_STRIKE: 3,
+            METRIC_PSIX: 4,
+            METRIC_X2: 3,
+            METRIC_PSIX2: 4,
         },
     },
 }
