@@ -38,6 +38,7 @@ RAW_OBSERVATION_SPECS: dict[str, tuple[int, ...]] = {
     "rX": (6,),
     "zX": (6,),
     "nX": (1,),
+    "lX": (1,),
     "rB": (32,),
     "zB": (32,),
     "FX": (6,),
@@ -47,6 +48,16 @@ SCALAR_REFERENCE_KEYS = tuple(key for key in REFERENCE_KEYS if key != "lcfs_poin
 LCFS_NUM_POINTS = 32
 LCFS_POINT_DIM = 2
 LCFS_SERIES_DIM = 3
+XPT_REFERENCE_SPECS: dict[str, tuple[int, ...]] = {
+    "rX": (4,),
+    "zX": (4,),
+    "x_valid": (4,),
+    "strike_r": (8,),
+    "strike_z": (8,),
+    "strike_valid": (8,),
+    "nX": (1,),
+    "n_strike": (1,),
+}
 
 
 def _default_action_bounds() -> tuple[np.ndarray, np.ndarray]:
@@ -113,6 +124,8 @@ def _build_observation_space() -> gym.Space:
     for key in SCALAR_REFERENCE_KEYS:
         spaces[f"reference_{key}"] = _box((1,))
     spaces["reference_lcfs_points"] = _box((LCFS_NUM_POINTS, LCFS_POINT_DIM))
+    for key, shape in XPT_REFERENCE_SPECS.items():
+        spaces[f"reference_{key}"] = _box(shape)
     spaces["failure"] = gym.spaces.MultiBinary(1)
     return gym.spaces.Dict(spaces)
 
@@ -172,6 +185,31 @@ def _coerce_lcfs_series(
     return arr
 
 
+def _coerce_vector_series(
+    values: Any,
+    max_steps: int,
+    shape: tuple[int, ...],
+    default: np.ndarray | None = None,
+) -> np.ndarray:
+    base = np.zeros(shape, dtype=np.float64) if default is None else np.asarray(default, dtype=np.float64)
+    if base.shape != shape:
+        base = np.zeros(shape, dtype=np.float64)
+    if values is None:
+        return np.repeat(base[None, ...], max_steps, axis=0)
+
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.shape == shape:
+        return np.repeat(arr[None, ...], max_steps, axis=0)
+    if arr.shape == (max_steps,) + shape:
+        return arr
+    if shape == (1,) and arr.size == 1:
+        return np.full((max_steps, 1), float(arr.reshape(-1)[0]), dtype=np.float64)
+    raise ValueError(
+        f"reference vector must have shape {shape} or ({max_steps}, {', '.join(map(str, shape))}), "
+        f"got {arr.shape}"
+    )
+
+
 def _build_hold_reference(raw: dict[str, Any], max_steps: int) -> dict[str, np.ndarray]:
     lcfs_points = _extract_lcfs_points(raw)
     reference = {
@@ -183,6 +221,8 @@ def _build_hold_reference(raw: dict[str, Any], max_steps: int) -> dict[str, np.n
         for key in SCALAR_REFERENCE_KEYS
     }
     reference["lcfs_points"] = np.repeat(lcfs_points[None, ...], max_steps, axis=0)
+    for key, shape in XPT_REFERENCE_SPECS.items():
+        reference[key] = np.zeros((max_steps,) + shape, dtype=np.float64)
     return reference
 
 
@@ -209,6 +249,13 @@ def _build_reference_trajectory(
         max_steps,
         hold_ref["lcfs_points"],
     )
+    for key, shape in XPT_REFERENCE_SPECS.items():
+        reference[key] = _coerce_vector_series(
+            reference_spec.get(key),
+            max_steps,
+            shape,
+            hold_ref[key][0],
+        )
     return reference
 
 
@@ -224,6 +271,8 @@ def _obs_dict_from_raw(
     for key in SCALAR_REFERENCE_KEYS:
         out[f"reference_{key}"] = np.array([reference[key][ref_idx]], dtype=np.float64)
     out["reference_lcfs_points"] = np.asarray(reference["lcfs_points"][ref_idx], dtype=np.float64)
+    for key in XPT_REFERENCE_SPECS:
+        out[f"reference_{key}"] = np.asarray(reference[key][ref_idx], dtype=np.float64)
     out["failure"] = np.array([1 if raw.get("failure", False) else 0], dtype=np.uint8)
     return out
 
@@ -297,7 +346,7 @@ class HFMSimulator(gym.Env):
             "reset_params": reset_params,
             "shot_id": self.shot_id,
             "reference_mode": reference_mode,
-            "reference_keys": list(REFERENCE_KEYS),
+            "reference_keys": list(REFERENCE_KEYS) + list(XPT_REFERENCE_SPECS),
             "reference_length": self.max_steps,
             "reference_trajectory": self.reference,
         }
@@ -328,7 +377,7 @@ class HFMSimulator(gym.Env):
             "step": self.step_count,
             "failure": terminated,
             "shot_id": self.shot_id,
-            "reference_keys": list(REFERENCE_KEYS),
+            "reference_keys": list(REFERENCE_KEYS) + list(XPT_REFERENCE_SPECS),
             "reference_index": min(self.step_count, self.max_steps - 1),
             "reference_length": self.max_steps,
             "raw_observation": raw,

@@ -1,6 +1,6 @@
 # Submission 提交说明
 
-本目录是**推理提交模板**：评测只与这里的推理服务交互，不运行训练代码。提交物为**一个 Docker 镜像**，需推送到**阿里云 ACR 容器镜像服务**，地域请选**乌鲁木齐**。具体提交入口以赛事方最新通知为准。
+本目录是**推理提交模板**：评测只与这里的推理服务交互，不运行训练代码。提交物为**一个 Docker 镜像**，需推送到**阿里云 ACR 容器镜像服务**，地域请选**乌兰察布**。具体提交入口以赛事方最新通知为准。
 
 ---
 
@@ -8,10 +8,10 @@
 
 | 可改 | 不可改 |
 |------|--------|
-| `inference.py`（你的策略逻辑） | `Dockerfile`（路径、工作目录等） |
-| `model/policy.onnx`（你的模型） | `run.sh`、`start_infer.sh`（评测启动脚本） |
-| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/11`、`/saisresult`、`/app` 等 |
-| `service.py` 仅在有把握时微调 | `run_hfm_socket_server.sh`、`run_test.py` 由评测机提供，路径不可改 |
+| `inference1.py` / `inference2.py`（你的策略逻辑） | `Dockerfile`（路径、工作目录等） |
+| `model/policy1.onnx` / `model/policy2.onnx`（你的模型） | `run.sh`、`start_infer.sh`（评测启动脚本） |
+| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/33`、`/saisresult`、`/app` 等 |
+| `service1.py` / `service2.py` 仅在有把握时微调 | `run_hfm_socket_server.sh`、`run_test.py` 由评测机提供，路径不可改 |
 
 ---
 
@@ -25,11 +25,15 @@ submission/
 ├── entrypoint_platform.sh  # 旧版脚本，保留备份
 ├── entrypoint_platform.sh.bak
 ├── README.md
-├── inference.py            # 选手主要修改：Policy 与推理逻辑
+├── inference1.py           # F1 策略入口，默认读取 model/policy1.onnx
+├── inference2.py           # F2a/F2b 策略入口，默认读取 model/policy2.onnx
 ├── requirements.txt        # 选手可追加依赖
-├── service.py              # HTTP 服务层，一般不需改
+├── service1.py             # F1 HTTP 服务层，一般不需改
+├── service2.py             # F2a/F2b HTTP 服务层，一般不需改
 └── model/
-    └── policy.onnx         # 选手提供
+    ├── policy1.onnx        # F1 模型，选手提供
+    ├── policy2.onnx        # F2a/F2b 模型，选手提供
+    └── policy.onnx         # 可选通用模型，缺少专用模型时回退使用
 ```
 
 ---
@@ -39,7 +43,7 @@ submission/
 赛事方挂载好数据后，容器内会依次：
 
 1. 启动**仿真服务**（评测机提供的 `run_hfm_socket_server.sh`，路径固定）
-2. 启动**你的 submission 服务**（`service.py`，端口 8000）
+2. 启动**你的 submission 服务**（`service1.py` 端口 8000，`service2.py` 端口 8001）
 3. 运行**评测脚本**（评测机提供的 `run_test.py`，路径固定）
 
 结果固定写入 `/saisresult/infer_result.json`，日志在 `/saisresult/*.log`。这些路径与脚本**不可修改**。
@@ -48,8 +52,9 @@ submission/
 
 ## 模型与接口
 
-- **推荐**：将模型导出为 ONNX，放在 `submission/model/policy.onnx`。
-- **必须**：`inference.py` 中实现 `Policy` 类，包含：
+- **推荐**：将 `F1` 模型导出为 `submission/model/policy1.onnx`，将 `F2a/F2b` 模型导出为 `submission/model/policy2.onnx`。
+- **可选**：如果三个子任务共用同一套权重，可以放置同一个 `submission/model/policy.onnx` 作为回退模型。
+- **必须**：`inference1.py` 和 `inference2.py` 中实现 `Policy` 类，包含：
   - `__init__(self, model_dir=None)`
   - `reset(self)`：每个 episode 开始时调用一次，清空内部状态
   - `act(self, observation: dict) -> np.ndarray`：返回 12 维真实电压动作
@@ -59,20 +64,20 @@ submission/
 
 ---
 
-## HTTP 接口（由 service.py 提供）
+## HTTP 接口（由 service1.py / service2.py 提供）
 
 - `GET /health`：返回 `{"ok": true}`
 - `POST /reset`：开始新 episode，内部会调 `Policy.reset()`
 - `POST /act`：传入当前 observation，返回 `{"ok": true, "action": [12 维]}`
 
-## 复赛双模型服务
+## 复赛双服务
 
-复赛允许在同一个提交镜像中启动两个策略服务：
+复赛在同一个提交镜像中启动两个策略服务：
 
 - `service1.py` / `inference1.py`：用于 `F1`，默认读取 `model/policy1.onnx`
 - `service2.py` / `inference2.py`：用于 `F2a`、`F2b`，默认读取 `model/policy2.onnx`
 
-`start_infer.sh` 会同时启动两个服务，默认端口分别为 `8000` 和 `8001`。评测脚本会将 `F1` 路由到第一个服务，将 `F2a/F2b` 路由到第二个服务。如果只提交一个通用模型，也可以放置 `model/policy.onnx`，两个 inference 文件会在找不到各自专用模型时回退到该文件。
+`start_infer.sh` 会同时启动两个服务，端口固定为 `8000` 和 `8001`。评测脚本会将 `F1` 路由到第一个服务，将 `F2a/F2b` 路由到第二个服务。选手不要修改服务文件名、端口或启动脚本；模型权重可以共用，但两个 HTTP 服务必须都能启动并响应。
 
 ---
 
@@ -103,23 +108,18 @@ docker push <你的 ACR 仓库>/<镜像名>:<标签>
 
 ## 本地自测（仅测 submission 服务）
 
-不跑完整评测、只测 HTTP 接口时，可用轻量 Dockerfile 起服务：
+不跑完整评测、只测 HTTP 接口时，可以直接运行双服务检查脚本：
 
 ```bash
-docker build -f submission/Dockerfile -t fc-submission-test .
-docker run -d --rm -p 8000:8000 \
-  -v "$(pwd):/saisdata/11/standalone-env:ro" \
-  --name fc-submission-test-run fc-submission-test
-docker exec -d fc-submission-test-run python3 /app/submission/service.py
-docker logs -f fc-submission-test-run
+python test/check_submission.py
 ```
 
-项目根目录下也可用 `python test/check_submission.py`、`python test/test_submission.py` 等做检查与联调。
+该脚本会检查 `service1.py` 和 `service2.py` 的 `/health`、`/reset`、`/act`。需要真实 HFM 环境联调时，再运行 `python test/test_submission.py`。
 
 ---
 
 ## 注意事项
 
 - 评测环境为 CPU-only，勿依赖 GPU 或交互界面。
-- `model/policy.onnx` 需自行导出并放入镜像。
+- `model/policy1.onnx` / `model/policy2.onnx` 需自行导出并放入镜像；若共用模型，可放 `model/policy.onnx`。
 - 镜像内 `/health`、`/reset`、`/act` 必须可用，且行为符合上述约定。

@@ -91,7 +91,7 @@ class PowerSupplyModel:
         )
 
         self._rng = np.random.default_rng(seed)
-        self._randomize_on_reset = delay_s is None
+        self._randomize_delay_each_step = delay_s is None
         if delay_s is None:
             self._resample_delay()
         else:
@@ -120,6 +120,8 @@ class PowerSupplyModel:
         self._u_history.append(u_set.copy())
         k = self._step_count
         self._step_count += 1
+        if self._randomize_delay_each_step:
+            self._resample_delay()
 
         u_delayed = np.empty(N_CHANNELS, dtype=np.float64)
         u_init = self._u_history[0]
@@ -129,8 +131,8 @@ class PowerSupplyModel:
         return u_delayed
 
     def reset(self, *, u_set_init: np.ndarray | None = None) -> None:
-        """Clear buffers; optionally resample per-channel transport delay."""
-        if self._randomize_on_reset:
+        """Clear buffers; random delay is resampled on every step when enabled."""
+        if self._randomize_delay_each_step:
             self._resample_delay()
         self._u_history = []
         self._step_count = 0

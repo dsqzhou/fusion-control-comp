@@ -16,8 +16,7 @@
 2. **本文档（README.md）**：完成本地安装、仿真器启动、训练与自测流程
 3. **docs/docker_runtime.md**：查看云服务直接部署 runtime 镜像的使用方式
 4. **docs/reference.md**：查看 observation、action、reference 和配置的详细字段说明
-5. **docs/XPT_CONTROL.md**（可选）：先进偏滤器 XPT 控制、`xpt_utils` 观测提取、等磁通与 Br/Bz，与赛题评测无强制关系
-6. **submission/README.md**：了解提交镜像的构建、HTTP 接口、约束条件（不可改的 Dockerfile、启动脚本等）
+5. **submission/README.md**：了解提交镜像的构建、HTTP 接口、约束条件（不可改的 Dockerfile、启动脚本等）
 
 ## 项目目录结构
 
@@ -42,16 +41,10 @@ fusion-control-comp/
 │   ├── wrappers.py
 │   └── __init__.py
 ├── examples/        # 示例脚本
-│   ├── example_xpt_scheme1.py
-│   ├── example_xpt_reward.py
-│   ├── xpt_example_common.py
-│   ├── example_reward.py
-│   ├── use_flatten_observation.py
-│   ├── use_7d_action.py
-│   ├── run_random_policy.py
-│   ├── custom_reference_reset.py
-│   ├── train_sb3_ppo.py
-│   └── ...
+│   ├── train_f1_ppo.py
+│   ├── train_f2_ppo.py
+│   ├── semifinal_training_common.py
+│   └── example_power_supply_step.py
 ├── tools/           # 启停仿真器
 │   ├── start_simulator.py
 │   └── stop_simulator.py
@@ -66,8 +59,10 @@ fusion-control-comp/
     ├── Dockerfile   # 正式提交用，勿改
     ├── start_infer.sh
     ├── run.sh
-    ├── inference.py
-    ├── service.py
+    ├── inference1.py
+    ├── inference2.py
+    ├── service1.py
+    ├── service2.py
     ├── requirements.txt
     ├── README.md
     └── model/
@@ -243,7 +238,7 @@ options = {
 obs, info = env.reset(seed=42, options=options)
 ```
 
-更完整的可运行示例见 `examples/custom_reference_reset.py`，其中同时演示了 `reset_params` 与 `trajectory reference` 的联合设置。
+复赛训练示例见 `examples/train_f1_ppo.py` 和 `examples/train_f2_ppo.py`，其中演示了如何使用目标 reference 构造 trajectory 训练。
 
 **说明**：
 - `HFMSimulator` 在内部使用 `HFMSocketPredictor` 与 Docker 仿真器通信
@@ -359,20 +354,12 @@ options = {
 
 ## Example 说明
 
-### 基础示例
+### 复赛训练示例
 
-- `examples/run_random_policy.py`：随机动作跑通环境
-- `examples/custom_reference_reset.py`：自定义 reset 参数与 trajectory reference
-- `examples/example_reward.py`：starter reward 示例
-- `examples/example_xpt_scheme1.py`：XPT 方案一 **20 维 baseline 特征**，**仅真实环境观测**
-- `examples/example_xpt_reward.py`：等磁通 `reward_fn` 多步交互（**需仿真器**）
-- `examples/xpt_example_common.py`：示例共用的 HFM 连接与取观测
-
-### 训练相关示例
-
-- `examples/use_flatten_observation.py`：把 dict observation 展平成向量
-- `examples/use_7d_action.py`：使用 7 维动作训练示例
-- `examples/train_sb3_ppo.py`：训练一个最小 PPO，并导出 ONNX 到 `submission/model/policy.onnx`
+- `examples/train_f1_ppo.py`：使用 `configs/f1_reference_targets.json` 构造 F1 限制器目标 reference，并训练 7 维对称动作 PPO。
+- `examples/train_f2_ppo.py`：使用 `configs/xpt_reference_targets.json` 构造 F2a/F2b XPT 目标 reference，并训练 7 维对称动作 PPO。
+- `examples/semifinal_training_common.py`：两个训练脚本共用的 reference、reward、wrapper 和 PPO 启动逻辑。
+- `examples/example_power_supply_step.py`：电源模型阶跃响应示例。
 
 ### 工具脚本
 
@@ -384,16 +371,7 @@ options = {
 
 ## ONNX 导出与提交工作流
 
-本地训练完成后，需要将模型导出为 ONNX 格式，并按 `submission/` 目录的要求打包为 Docker 镜像。
-
-### 工作流概览
-
-1. **本地训练**：使用 `HFMSimulator` 环境训练策略
-2. **模型导出**：将训练好的模型导出为 ONNX（通常命名 `policy.onnx`）
-3. **推理脚本编写**：在 `submission/inference.py` 中实现推理逻辑
-4. **本地自测**：运行 `test/check_submission.py` 和 `test/test_submission.py` 验证
-5. **镜像构建与推送**：按 `submission/README.md` 的要求构建镜像并推送到阿里云 ACR
-6. **赛事镜像提交**：在 <https://competition.ai4s.com.cn/> 可控核聚变控制赛道提交镜像
+本地训练完成后，需要将模型导出为 ONNX 格式，并按 `submission/` 目录的要求打包为 Docker 镜像。复赛使用双服务提交模板，具体模型命名、推理入口和本地检查方式以 `README_SEMIFINAL.md` 与 `submission/README.md` 为准。
 
 ### 推荐流程（示例）
 
@@ -402,9 +380,11 @@ options = {
 cd tools
 python start_simulator.py -n 1 -y
 
-# 2. 训练模型（示例：使用 SB3 PPO）
+# 2. 训练模型（示例：F1 或 F2）
 cd ../examples
-python train_sb3_ppo.py
+python train_f1_ppo.py
+# 或
+python train_f2_ppo.py
 
 # 3. 检查 submission 镜像（仅验证服务是否可用，不运行完整评测）
 cd ../test
@@ -417,8 +397,7 @@ python test_submission.py --launch-service docker --service-url http://127.0.0.1
 ```
 
 **注意**：
-- `submission/model/policy.onnx` 需要由选手自己导出和放入
-- `submission/inference.py` 中的预处理和推理逻辑可自由实现，但需符合指定的 Policy 接口
+- 复赛模型文件和推理入口见 `README_SEMIFINAL.md` 与 `submission/README.md`
 - `submission/Dockerfile`、`start_infer.sh`、`run.sh` 及容器内路径均**不可修改**，详见 `submission/README.md`
 
 ### 本地评估
@@ -447,8 +426,8 @@ python3 evaluate.py ../results/target.json ../results/infer_result.json
 比赛的**正式接口仍为 12 维真实电压动作**。`environment/wrappers.py` 中提供了 `Action7DTo12DWrapper` 和 `action_7d_to_12d()`，这是一种**降维参考方案**，仅用于快速实验和早期调参。
 
 **关键约束**：
-- 7 维动作映射**仅作训练阶段参考**，不代表正式评测允许 7 维输出
-- 如模型内部输出 7 维，**必须在 `submission/inference.py` 中自行映射回 12 维**后再提交
+- 7 维动作映射**仅作训练阶段和策略内部降维参考**
+- 如模型内部输出 7 维，**必须在推理入口中自行映射回 12 维**后再提交
 - **正式提交的镜像必须返回 12 维真实电压**
 
 ### 7 维到 12 维的映射逻辑（参考）
@@ -465,7 +444,7 @@ v[5]  → u[9] = u[10]
 v[6]  → u[11]        # 第 7 维为快控线圈电压，单独控制
 ```
 
-这种对称保持的做法通常更有利于维持等离子体整体稳定，但**仅供参考，不是比赛规则**。
+这种对称保持的做法通常更有利于维持等离子体整体稳定。复赛动作建议和提交细节见 `README_SEMIFINAL.md`。
 
 ## 示例结果与评分（参考）
 
@@ -499,4 +478,4 @@ set KMP_DUPLICATE_LIB_OK=TRUE
 - **修复**：客户端改为单次原子 `sendall()`（`environment/docker_socket_predictor.py` 中新增 `_send_lines`，`INIT/RESET/STEP` 的命令+负载合并发送）。
 - **是否需要选手改代码**：**不需要**。`reset()` / `step()` 接口与返回值完全保持向后兼容。
 - **如何拿到修复**：拉取最新代码后重新 `pip install -e .`（或重新拉取本目录）即可。
-- **如何自测**：旧版本机器上若曾偶发此错，可用 `examples/run_random_policy.py` 多次跑通 reset+step；如仍能复现，请联系赛事方并提供 `docker logs <hfm-matlab-server>` 末尾若干行。
+- **如何自测**：旧版本机器上若曾偶发此错，可用 `examples/train_f1_ppo.py --total-timesteps 10` 跑通 reset+step；如仍能复现，请联系赛事方并提供 `docker logs <hfm-matlab-server>` 末尾若干行。

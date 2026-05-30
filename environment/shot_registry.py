@@ -20,7 +20,7 @@ def _resolve_shot_config_path() -> Path:
     candidates.append(pkg_root / "configs" / "shots.yaml")
     saisdata_root = Path(__file__).resolve().parents[2]
     candidates.append(saisdata_root / "inference" / "shots.yaml")
-    saisdata_env = os.environ.get("SAISDATA_ROOT", "/saisdata/11")
+    saisdata_env = os.environ.get("SAISDATA_ROOT", "/saisdata/33")
     candidates.append(Path(saisdata_env) / "inference" / "shots.yaml")
     candidates.append(Path("/saisdata/inference/shots.yaml"))
 
@@ -61,7 +61,7 @@ def _load_shot_registry() -> dict[str, dict]:
 
 SHOT_REGISTRY: dict[str, dict] = _load_shot_registry()
 
-REFERENCE_KEYS = ["Ip", "R", "Z", "lcfs_points"]
+REFERENCE_KEYS = ["Ip", "R", "Z", "lX", "lcfs_points"]
 
 
 def get_shot_spec(shot_id: str) -> dict:

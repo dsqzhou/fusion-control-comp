@@ -68,6 +68,9 @@ class HFMSocketPredictor(DockerSocketPredictor):
     def _parse_observation(self, obs_dict: dict[str, Any]) -> dict[str, Any]:
         for key, size in VECTOR_OBSERVATION_LENGTHS.items():
             obs_dict[key] = np.asarray(obs_dict.get(key, [0] * size), dtype=np.float64).reshape(size)
+        if "lX" not in obs_dict:
+            nx = np.asarray(obs_dict.get("nX", 0.0), dtype=np.float64).reshape(-1)
+            obs_dict["lX"] = float(nx[0] > 0.5) if nx.size else 0.0
         obs_dict["failure"] = obs_dict.get("is_failure", False)
         return obs_dict
 
