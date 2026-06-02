@@ -151,14 +151,16 @@ pip install stable-baselines3 torch onnx
 
 适用场景：本地机器或可直接运行 Docker 的服务器。
 
-环境镜像链接：`[待补充]`
+复赛环境镜像链接：`crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition-v0.2`
 
-请先拉取比赛提供的环境镜像，并打上本地标签：
+请先拉取比赛提供的复赛环境镜像，并打上本地标签：
 
 ```bash
-docker pull crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition
-docker tag crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition hfm-matlab-server:competition
+docker pull crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition-v0.2
+docker tag crpi-q4qg69o2szruzmaa.cn-beijing.personal.cr.aliyuncs.com/enn_smart/hfm_server:competition-v0.2 hfm-matlab-server:competition
 ```
+
+重点：本地标签必须保持为 `hfm-matlab-server:competition`。训练启动脚本会读取这个本地镜像名；远端 tag 使用 `competition-v0.2` 是为了区分复赛环境与初赛 `competition` 镜像。
 
 启动单实例：
 
