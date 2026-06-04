@@ -96,7 +96,7 @@ def start_services(
                     "-p",
                     f"{port2}:8001",
                     "-v",
-                    f"{ROOT}:/saisdata/33/standalone-env:ro",
+                    f"{ROOT}:/saisdata/40/standalone-env:ro",
                     image_name,
                 ],
                 cwd=str(ROOT),

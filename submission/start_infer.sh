@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # --- 1. 环境变量：工作目录、端口、结果与日志路径（由评测机挂载决定，请勿修改）---
-SAISDATA_ROOT="${SAISDATA_ROOT:-/saisdata/33}"
+SAISDATA_ROOT="${SAISDATA_ROOT:-/saisdata/40}"
 MCR_ROOT="${MCR_ROOT:-/opt/matlabruntime/R2025a}"
 SUBMISSION_HOST="${SUBMISSION_HOST:-0.0.0.0}"
 SUBMISSION_PORT="${SUBMISSION_PORT:-8000}"
@@ -46,7 +46,7 @@ if [[ ! -f "${SAISDATA_ROOT}/inference/run_test.py" ]]; then
 fi
 
 # --- 2.5 将 OSS 挂载数据一次性 copy 到容器本地，避免后续频繁读取导致 OSS 连接中断 ---
-LOCAL_SAISDATA="/saisdata_local/33"
+LOCAL_SAISDATA="/saisdata_local/40"
 echo "[start_infer] copying ${SAISDATA_ROOT} -> ${LOCAL_SAISDATA} ..." >&2
 mkdir -p "${LOCAL_SAISDATA}"
 cp -a "${SAISDATA_ROOT}/." "${LOCAL_SAISDATA}/"
