@@ -102,7 +102,7 @@ def _greedy_assignment(cost: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _linear_sum_assignment(cost: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """小矩阵最小代价一一匹配；无 scipy 依赖。
+    """小矩阵最小代价一一匹配
 
     行数多于列数时，匹配所有列到不同的行；否则匹配所有行到不同的列。
     这样 ``nX<slots`` 时由全局距离决定槽位，避免前序槽位贪心抢点。

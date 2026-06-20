@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from environment.xpt_utils import (
+    _linear_sum_assignment,
     _match_to_reference_slots,
     assign_xpoints_to_slots,
     extract_nx,
@@ -71,6 +72,54 @@ def test_assign_nx6_hungarian_to_reference():
     assert np.all(valid == 1.0)
 
 
+def test_assignment_is_global_not_target_order_greedy():
+    cost = np.array(
+        [
+            [0.288628, 5.469588],
+            [0.020034, 3.805552],
+            [3.812123, 0.020498],
+            [5.382583, 0.269183],
+        ]
+    )
+    rows, cols = _linear_sum_assignment(cost)
+    assert rows.tolist() == [1, 2]
+    assert cols.tolist() == [0, 1]
+
+
+def test_assign_nx2_uses_middle_primary_slots():
+    # 13844_500 reset has two X points near target slots 1/2 of 13906_500.
+    obs = {
+        "rX": np.array([0.606427, 0.606249, 0.0, 0.0, 0.0, 0.0]),
+        "zX": np.array([-0.906342, 0.903220, 0.0, 0.0, 0.0, 0.0]),
+        "FX": np.arange(6, dtype=float),
+        "nX": np.array([2]),
+        "FB": np.array([0.0]),
+    }
+    ref_r = np.array([0.711751, 0.596334, 0.597377, 0.711425])
+    ref_z = np.array([1.430000, 1.044414, -1.049226, -1.414434])
+    r, z, _, valid, nx, _ = assign_xpoints_to_slots(obs, ref_r, ref_z, slots=4)
+    assert nx == 2
+    assert np.where(valid > 0.5)[0].tolist() == [1, 2]
+    assert np.allclose(r[1:3], [0.606249, 0.606427])
+    assert np.allclose(z[1:3], [0.903220, -0.906342])
+
+
+def test_assign_nx3_can_leave_top_secondary_empty():
+    obs = {
+        "rX": np.array([0.596334, 0.597377, 0.711425, 0.0, 0.0, 0.0]),
+        "zX": np.array([1.044414, -1.049226, -1.414434, 0.0, 0.0, 0.0]),
+        "FX": np.arange(6, dtype=float),
+        "nX": np.array([3]),
+        "FB": np.array([0.0]),
+    }
+    ref_r = np.array([0.711751, 0.596334, 0.597377, 0.711425])
+    ref_z = np.array([1.430000, 1.044414, -1.049226, -1.414434])
+    _, z, _, valid, nx, _ = assign_xpoints_to_slots(obs, ref_r, ref_z, slots=4)
+    assert nx == 3
+    assert np.where(valid > 0.5)[0].tolist() == [1, 2, 3]
+    assert np.allclose(z[1:4], [1.044414, -1.049226, -1.414434])
+
+
 def test_strike_hungarian_when_more_than_8():
     ref_r = np.arange(8, dtype=float)
     ref_z = np.zeros(8)
@@ -126,6 +175,9 @@ def run_all():
     test_extract_nx_and_sort_order()
     test_assign_nx4_sort_only()
     test_assign_nx6_hungarian_to_reference()
+    test_assignment_is_global_not_target_order_greedy()
+    test_assign_nx2_uses_middle_primary_slots()
+    test_assign_nx3_can_leave_top_secondary_empty()
     test_strike_hungarian_when_more_than_8()
     test_pack_vector_length()
     test_infer_order_matches_synthetic()
