@@ -10,7 +10,7 @@
 |------|--------|
 | `inference1.py` / `inference2.py`（你的策略逻辑） | `Dockerfile`（路径、工作目录等） |
 | `model/policy1.onnx` / `model/policy2.onnx`（你的模型） | `run.sh`、`start_infer.sh`（评测启动脚本） |
-| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/33`、`/saisresult`、`/app` 等 |
+| `requirements.txt`（仅增加依赖，勿删已有） | 容器内路径：`/saisdata/40`、`/saisresult`、`/app` 等 |
 | `service1.py` / `service2.py` 仅在有把握时微调 | `run_hfm_socket_server.sh`、`run_test.py` 由评测机提供，路径不可改 |
 
 ---

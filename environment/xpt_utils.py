@@ -102,8 +102,38 @@ def _greedy_assignment(cost: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _linear_sum_assignment(cost: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """最小代价匹配（贪心）。4/8 槽位下与匈牙利结果通常一致，且 RL 每步无 scipy 开销。"""
-    return _greedy_assignment(cost)
+    """小矩阵最小代价一一匹配；无 scipy 依赖。
+
+    行数多于列数时，匹配所有列到不同的行；否则匹配所有行到不同的列。
+    这样 ``nX<slots`` 时由全局距离决定槽位，避免前序槽位贪心抢点。
+    """
+    cost = np.asarray(cost, dtype=np.float64)
+    n_rows, n_cols = cost.shape
+    if n_rows == 0 or n_cols == 0:
+        return np.zeros(0, dtype=int), np.zeros(0, dtype=int)
+    if max(n_rows, n_cols) > 16:
+        return _greedy_assignment(cost)
+    if n_rows > n_cols:
+        col_rows, row_cols = _linear_sum_assignment(cost.T)
+        return row_cols, col_rows
+
+    states: dict[int, tuple[float, tuple[int, ...]]] = {0: (0.0, ())}
+    for i in range(n_rows):
+        next_states: dict[int, tuple[float, tuple[int, ...]]] = {}
+        for mask, (total, cols) in states.items():
+            for j in range(n_cols):
+                bit = 1 << j
+                if mask & bit:
+                    continue
+                new_mask = mask | bit
+                new_total = total + float(cost[i, j])
+                prev = next_states.get(new_mask)
+                if prev is None or new_total < prev[0]:
+                    next_states[new_mask] = (new_total, cols + (j,))
+        states = next_states
+
+    _, best_cols = min(states.values(), key=lambda item: item[0])
+    return np.arange(n_rows, dtype=int), np.asarray(best_cols, dtype=int)
 
 
 def _match_to_reference_slots(
