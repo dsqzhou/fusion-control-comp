@@ -1,0 +1,14 @@
+# 21316 时变 bp/q0：LX 用 v4.1，INIT 不传 bp/q0。
+max_steps: 200
+
+reference:
+  mode: trajectory
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lcfs_points"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21316_timevar"
+  power_supply:
+    rate_deg: 7.2

@@ -40,3 +40,97 @@
     signeo: 4.8e6
     bp: 0.3
     q0: 1.9
+
+# 21311 / 21316: EXL-50U v58.6 合作训练算例。150ms 用 rampup PSM（CS 正组），
+# 300ms / 时变用 v4 PSM。时变 LX 为 v4.1，且不传 bp/q0，避免覆盖剖面。
+"21311_150":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21311_150_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4_rampup.mat"
+  start_time_ms: 150
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 7.7e6
+    bp: 0.15
+    q0: 2.64
+
+"21311_300":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21311_300_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 1.17e7
+    bp: 0.12
+    q0: 1.76
+
+"21311_timevar":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21311_300_v4.1.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 1.17e7
+
+"21316_150":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21316_150_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4_rampup.mat"
+  start_time_ms: 150
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 7.2e6
+    bp: 0.04
+    q0: 2.62
+
+"21316_300":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21316_300_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 7.1e6
+    bp: 0.06
+    q0: 1.80
+
+"21316_timevar":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21316_300_v4.1.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 7.1e6

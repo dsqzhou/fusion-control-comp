@@ -54,14 +54,16 @@ def _load_shot_registry() -> dict[str, dict]:
     for key, value in data.items():
         spec = dict(value)
         defaults = spec.get("reset_defaults", {})
-        spec["reset_defaults"] = {name: _normalize_number(val) for name, val in defaults.items()}
+        spec["reset_defaults"] = {
+            name: _normalize_number(val) for name, val in defaults.items() if val is not None
+        }
         registry[str(key)] = spec
     return registry
 
 
 SHOT_REGISTRY: dict[str, dict] = _load_shot_registry()
 
-REFERENCE_KEYS = ["Ip", "R", "Z", "lX", "lcfs_points"]
+REFERENCE_KEYS = ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lX", "lcfs_points"]
 
 
 def get_shot_spec(shot_id: str) -> dict:
@@ -76,14 +78,33 @@ def get_fge_init_config_for_shot(
     bp: float | None = None,
     q0: float | None = None,
 ) -> dict:
-    """Build init config with fixed L_addr/LX_addr and internal fixed flags."""
+    """Build init config with fixed L_addr/LX_addr and optional shot flags.
+
+    Time-varying cases omit ``bp`` / ``q0`` so the LX profile is not overwritten.
+    Extra FGE flags come from ``fge_init`` in ``shots.yaml``.
+    """
     spec = get_shot_spec(shot_id)
     defaults = spec.get("reset_defaults", {})
-    base = {
+    base: dict = {
         "L_addr": spec["L_addr"],
         "LX_addr": spec["LX_addr"],
-        "signeo": defaults.get("signeo") if signeo is None else signeo,
-        "bp": defaults.get("bp") if bp is None else bp,
-        "q0": defaults.get("q0") if q0 is None else q0,
     }
+    extra = spec.get("fge_init") or {}
+    base.update(
+        {key: _normalize_number(val) for key, val in extra.items() if val is not None}
+    )
+    resolved = {
+        "signeo": signeo if signeo is not None else defaults.get("signeo"),
+        "bp": bp if bp is not None else defaults.get("bp"),
+        "q0": q0 if q0 is not None else defaults.get("q0"),
+    }
+    for key, val in resolved.items():
+        if val is not None:
+            base[key] = val
     return base
+
+
+def get_shot_psm_config_path(shot_id: str | None) -> str | None:
+    if not shot_id or shot_id not in SHOT_REGISTRY:
+        return None
+    return get_shot_spec(shot_id).get("psm_config_path")

@@ -271,7 +271,7 @@ obs, info = env.reset(seed=42, options=options)
 
 - 核心控制目标：`Ip`、`R`、`Z`、`lcfs_points`
 - 当前步目标：`reference_Ip`、`reference_R`、`reference_Z`、`reference_lcfs_points`
-- 辅助状态量：`I_PF`、`Rmax`、`Rmin`、`aminor`、`deltal`、`deltau`、`kappa`、`Bm`、`Fx` 等
+- 辅助状态量：`I_PF`、`Rmax`、`Rmin`、`aminor`、`deltal`、`deltau`、`kappa`、`Bm`、`Ff`、`Fx` 等
 
 说明：
 

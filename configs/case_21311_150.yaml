@@ -1,0 +1,15 @@
+# 21311 非时变，起始 150 ms。训练建议 z_target=-0.015。
+max_steps: 171
+
+reference:
+  mode: trajectory
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lcfs_points"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21311_150"
+  power_supply:
+    rate_deg: 7.2
+    # delay_s: null 表示每步随机；调试可写成 12 路固定秒数，例如全 0。

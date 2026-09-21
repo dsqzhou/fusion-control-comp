@@ -9,8 +9,8 @@ from typing import Any, Optional, Sequence
 import gymnasium as gym
 import numpy as np
 
+from .power_supply import action_bounds_7d
 from .preprocessing import (
-    ACTION_7D_TO_12D_INDEX,
     DEFAULT_FLAT_OBSERVATION_KEYS,
     action_7d_to_12d,
     flatten_dict_observation,
@@ -61,8 +61,7 @@ class Action7DTo12DWrapper(gym.ActionWrapper):
         action_high_7d: Optional[np.ndarray] = None,
     ):
         super().__init__(env)
-        low_7 = np.array([-1499, -230, -172, -172, -348, -348, -270], dtype=np.float32)
-        high_7 = np.array([1499, 230, 172, 172, 348, 348, 270], dtype=np.float32)
+        low_7, high_7 = action_bounds_7d()
         if action_low_7d is not None:
             low_7 = np.asarray(action_low_7d, dtype=np.float32)
         if action_high_7d is not None:

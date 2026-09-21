@@ -11,7 +11,9 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 
+from .case_references import CASE_SHOT_IDS, build_case_reference
 from .hfm_predictor import HFMSocketPredictor
+from .power_supply import action_bounds_12d
 from .shot_registry import REFERENCE_KEYS
 
 RAW_OBSERVATION_SPECS: dict[str, tuple[int, ...]] = {
@@ -29,7 +31,8 @@ RAW_OBSERVATION_SPECS: dict[str, tuple[int, ...]] = {
     "zc": (1,),
     "FA": (1,),
     "FB": (1,),
-    "Bm": (100,),
+    "Bm": (164,),
+    "Ff": (47,),
     "nrx": (1,),
     "nzx": (1,),
     "Fx": (4290,),
@@ -61,15 +64,7 @@ XPT_REFERENCE_SPECS: dict[str, tuple[int, ...]] = {
 
 
 def _default_action_bounds() -> tuple[np.ndarray, np.ndarray]:
-    low = np.array(
-        [-1499, -230, -172, -172, -348, -348, -270, -270, -348, -348, -270, -270],
-        dtype=np.float32,
-    )
-    high = np.array(
-        [1499, 230, 172, 172, 348, 348, 270, 270, 348, 348, 270, 270],
-        dtype=np.float32,
-    )
-    return low, high
+    return action_bounds_12d()
 
 
 def _box(shape: tuple[int, ...]) -> gym.spaces.Box:
@@ -323,6 +318,12 @@ class HFMSimulator(gym.Env):
         reset_params = options.get("reset_params", {})
         reference_mode = options.get("reference_mode", self.reference_mode_default)
         reference_spec = options.get("reference")
+        if (
+            reference_spec is None
+            and reference_mode == "trajectory"
+            and self.shot_id in CASE_SHOT_IDS
+        ):
+            reference_spec = build_case_reference(self.shot_id, self.max_steps)
 
         signeo = reset_params.get("signeo")
         bp = reset_params.get("bp")

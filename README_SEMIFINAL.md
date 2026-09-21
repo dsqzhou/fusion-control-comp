@@ -26,7 +26,7 @@
 - **目标位形增加**：新增 XPT 位形，除 LCFS 外，还关注主 X 点、次级 X 点、打击点和 X 点磁通。
 - **初始态变化**：正式评估的初始平衡与训练环境提供的平衡不完全相同，但属于同一位形类型。
 - **评分逻辑变化**：复赛新增位形类型判断、电流偏差熔断、XPT 拓扑约束和线圈电流硬约束。
-- **工程模型增强**：动作进入 HFM 前会经过电源模型，包含传输延迟、电压变化率限幅和 PSM 仿射标定。建议选手训练和本地测试时自行加入 observation 噪声、延迟等扰动，检查策略鲁棒性。
+- **工程模型增强**：动作进入 HFM 前会经过电源模型：幅值限幅、可配置传输延迟、`uout_to_urec` 相位限速，再加载 `.mat` PSM。建议选手训练和本地测试时自行加入 observation 噪声、延迟等扰动，检查策略鲁棒性。
 - **提交服务变化**：一个提交镜像内启动两个推理服务，分别处理 `F1` 和 `F2a/F2b`。
 
 ## 3. 环境与代码更新提醒
@@ -39,7 +39,7 @@
 | --- | --- |
 | `environment/hfm_simulator.py` | Gymnasium 环境入口。复赛 observation 增加了 LCFS 与 XPT 相关 reference 字段，`reset(options=...)` 可接收 trajectory reference。 |
 | `environment/hfm_predictor.py` | HFM socket 通信层。在 `step()` 中接入电源模型，所以策略输出电压不会直接进入 HFM。 |
-| `environment/power_supply.py` | 电源响应模型：传输延迟 -> 变化率限幅 -> PSM 仿射标定。训练和推理都会经过这层。 |
+| `environment/power_supply.py` | 电源响应模型：clip → delay → `uout_to_urec` → `.mat` PSM。训练和推理都会经过这层。 |
 | `environment/preprocessing.py` | 基础预处理工具，含 7 维对称动作到 12 维动作映射、字典 observation flatten 示例。不是强制接口。 |
 | `environment/xpt_utils.py` | XPT 观测辅助工具。可从原始 observation 中整理 X 点、打击点、X 点磁通、磁通梯度等，供训练特征或 reward 使用。 |
 | `configs/env_default.yaml` / `configs/shots.yaml` | 本地训练环境默认配置和公开 shot 预设。正式测试配置不完全公开。 |
@@ -48,7 +48,8 @@
 | `examples/train_f1_ppo.py` | F1 最小 PPO 训练入口，读取 `f1_reference_targets.json`，演示偏滤器类初态到限制器目标的训练流程。 |
 | `examples/train_f2_ppo.py` | F2a/F2b 最小 PPO 训练入口，读取 `xpt_reference_targets.json`，演示到 XPT 目标的训练流程。 |
 | `examples/semifinal_training_common.py` | F1/F2 训练脚手架共用代码，不表示共用同一个模型。它会根据目标文件是否包含 XPT 字段自动分支：F1 只使用 Ip、LCFS、I_PF 等基础特征和 Ip/LCFS reward；F2 才追加 XPT reference、X 点和打击点相关特征与 reward。 |
-| `examples/example_power_supply_step.py` | 电源模型阶跃响应示例，用于理解延迟、限幅和 PSM 仿射对动作的影响。 |
+| `examples/example_power_supply_step.py` | 电源模型阶跃响应示例，用于理解延迟、`uout_to_urec` 和 PSM 对动作的影响。 |
+| `examples/run_case.py` / `docs/cases.md` | 21311/21316 的 150、300、时变训练算例。 |
 | `submission/service1.py` / `submission/inference1.py` | `F1` 推理 HTTP 服务与策略入口。 |
 | `submission/service2.py` / `submission/inference2.py` | `F2a/F2b` 推理 HTTP 服务与策略入口。 |
 | `submission/start_infer.sh` | 评测启动脚本，固定同时启动 `service1` 和 `service2`，选手不要修改。 |
@@ -56,7 +57,7 @@
 | `test/test_submission.py` | 与真实 HFM 环境做少步联调，检查 submission 服务和环境闭环是否能跑通。 |
 | `evaluation/eval/` | 本地离线评分代码和示例结果格式，用于理解评分输出；正式评测以评测机为准。 |
 
-电源模型的详细公式和参数说明见 `docs/power_supply_model.md`。简要地说，策略输出的 `U_set` 会先经过延迟和变化率限制，再映射为实际送入 HFM 的 `U_real`。公开训练环境和正式推理环境都会包含该电源模型；默认延迟会按步随机采样，电压变化率限幅按当前公开配置执行。
+电源模型的详细公式和参数说明见 `docs/power_supply_model.md`。策略输出的 `U_set` 先按满幅电压限幅，再经过可配置延迟和 `uout_to_urec`（7.2°），最后用 shot 对应的 `.mat` 做 PSM（VS 旁路）。默认延迟按步随机采样；`predictor.power_supply.delay_s` 可改成固定值或全 0。
 
 ## 4. 复赛最短路径
 

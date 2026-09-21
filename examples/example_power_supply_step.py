@@ -30,14 +30,13 @@ def main() -> None:
     n = int(duration_s / dt)
     t = np.arange(n) * dt
 
-    u_low, u_high = 0.0, 100.0
+    u_low, u_high = 0.0, 1500.0
     step_at = 0.01
     u_set = np.where(t >= step_at, u_high, u_low)
 
     model = PowerSupplyModel(
         slopes=np.ones(12),
         intercepts=np.zeros(12),
-        max_change_per_step=np.full(12, np.inf),
         delay_s=np.full(12, 0.0035),
         seed=0,
     )
@@ -58,8 +57,8 @@ def main() -> None:
         alpha=0.7,
         label=f"delay L={delay_s * 1000:.1f} ms",
     )
-    ax0.set_ylabel("Voltage (arb. unit)")
-    ax0.set_title(r"Delay $\rightarrow$ rate limit $\rightarrow$ PSM (identity PSM shown)")
+    ax0.set_ylabel("Voltage (V)")
+    ax0.set_title(r"clip $\rightarrow$ delay $\rightarrow$ uout\_to\_urec $\rightarrow$ PSM")
     ax0.legend(loc="lower right")
     ax0.grid(True, alpha=0.3)
 

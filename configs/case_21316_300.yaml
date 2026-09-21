@@ -1,0 +1,14 @@
+# 21316 非时变，起始 300 ms。Rmax/Rmin 可叠加 3 Hz / 30 Hz 扰动。
+max_steps: 200
+
+reference:
+  mode: trajectory
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lcfs_points"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21316_300"
+  power_supply:
+    rate_deg: 7.2

@@ -11,14 +11,20 @@ import numpy as np
 
 from .docker_socket_predictor import DockerSocketPredictor
 from .power_supply import PowerSupplyModel
-from .shot_registry import SHOT_CONFIG_PATH, SHOT_REGISTRY, get_fge_init_config_for_shot
+from .shot_registry import (
+    SHOT_CONFIG_PATH,
+    SHOT_REGISTRY,
+    get_fge_init_config_for_shot,
+    get_shot_psm_config_path,
+)
 
 VECTOR_OBSERVATION_LENGTHS: dict[str, int] = {
     "I_PF": 12,
     "Fx": 4290,
     "rx": 66,
     "zx": 65,
-    "Bm": 100,
+    "Bm": 164,
+    "Ff": 47,
     "rX": 6,
     "zX": 6,
     "rB": 32,
@@ -35,7 +41,24 @@ class HFMSocketPredictor(DockerSocketPredictor):
     ):
         config = config or {}
         super().__init__(name, config)
-        self._power_supply = PowerSupplyModel()
+        self._power_supply = self._build_power_supply(config)
+
+    @staticmethod
+    def _build_power_supply(config: dict[str, Any]) -> PowerSupplyModel:
+        ps_cfg = dict(config.get("power_supply") or {})
+        psm_path = ps_cfg.get("psm_config_path")
+        if psm_path is None:
+            psm_path = get_shot_psm_config_path(config.get("shot_id"))
+        return PowerSupplyModel(
+            psm_config_path=psm_path,
+            slopes=ps_cfg.get("slopes"),
+            intercepts=ps_cfg.get("intercepts"),
+            um_values=ps_cfg.get("um_values"),
+            rate_deg=float(ps_cfg.get("rate_deg", 7.2)),
+            delay_s=ps_cfg.get("delay_s"),
+            use_psm=ps_cfg.get("use_psm", True),
+            seed=ps_cfg.get("seed"),
+        )
 
     def _get_init_config(self, config: dict[str, Any]) -> dict[str, Any]:
         if "fge_init_config" in config:
@@ -63,7 +86,7 @@ class HFMSocketPredictor(DockerSocketPredictor):
 
         if hasattr(fge, "to_dict"):
             fge = fge.to_dict()
-        return dict(fge)
+        return {key: value for key, value in dict(fge).items() if value is not None}
 
     def _parse_observation(self, obs_dict: dict[str, Any]) -> dict[str, Any]:
         for key, size in VECTOR_OBSERVATION_LENGTHS.items():

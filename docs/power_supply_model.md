@@ -7,55 +7,48 @@
 每个仿真步（1 ms）按以下顺序处理 12 路电压：
 
 ```text
-U_set[k]  策略给出的电压指令
+U_set[k]  策略给出的电压指令（UOUT）
    |
-   v  ① 传输时延：取 U_set[k - d_i[k]]（历史不足时用首步指令填充）
+   v  ① 幅值限幅：clip 到 ±um_i
    |
-   v  ② 速率限制：|u_r[k] - u_r[k-1]| <= max_change_i
+   v  ② 传输时延：取 U_set[k - d_i]（可配置；默认每步随机采样）
    |
-   v  ③ PSM 仿射：U_real[k] = slope_i * u_r[k] + intercept_i
+   v  ③ uout_to_urec：相位角速率限制，|Δθ| ≤ 7.2°
+   |
+   v  ④ PSM：U_real = slope * UREC + intercept（系数来自 .mat；VS 旁路）
    |
 HFM predictor
 ```
 
+旧实现里的「线性 ΔV」是伏特空间限速 `|u[k]-u[k-1]| ≤ Δu_max`。现已替换为装置侧的相位限速，不再叠加一层伏特限速。
+
 ## 公式
 
-对第 `i` 路电源，在第 `k` 个仿真步：
-
 ```text
-u_d,i[k] = U_set,i[k - d_i[k]]
+u_clip,i[k] = clip(U_set,i[k], -um_i, um_i)
+u_d,i[k]    = u_clip,i[k - d_i]
 
-u_r,i[k] = clip(
-    u_d,i[k],
-    u_r,i[k-1] - Δu_i^max,
-    u_r,i[k-1] + Δu_i^max
-)
+θ*_i[k]     = arcsin(clip(u_d,i[k] / um_i, -1, 1))
+θ_i[k]      = θ_i[k-1] + clip(θ*_i[k] - θ_i[k-1], -7.2°, 7.2°)
+UREC,i[k]   = um_i * sin(θ_i[k])
 
-U_real,i[k] = a_i * u_r,i[k] + b_i
+U_real,i[k] = a_i * UREC,i[k] + b_i    (i = 0..10)
+U_real,11[k]= UREC,11[k]               (VS 不走 PSM)
 ```
 
-其中：
-
-- `U_set,i[k]`：策略在第 `k` 步输出的第 `i` 路电压指令。
-- `d_i[k]`：第 `i` 路电源在第 `k` 步使用的离散延迟步数，由连续延迟时间按 `dt = 1 ms` 换算得到。
-- `u_d,i[k]`：经过传输延迟后的电压指令。
-- `u_r,i[k]`：经过变化率限幅后的电压。
-- `Δu_i^max`：第 `i` 路每步允许的最大电压变化量。
-- `a_i, b_i`：第 `i` 路 PSM 标定参数。
-- `U_real,i[k]`：最终送入 HFM 的实际电压。
-
-历史不足时，延迟项使用 episode 首步电压指令填充；每次 reset 会清空历史状态。默认配置下，延迟会在每个仿真步重新采样；如果构造 `PowerSupplyModel(delay_s=...)` 显式传入延迟，则使用固定延迟，便于调试和对照实验。
+首步没有历史 UREC 时，只做幅值限幅，不从 0 爬升。
 
 ## 参数
 
 | 项 | 说明 |
 |----|------|
-| PSM slope / intercept | 12 路实测标定常数（替换原占位 K/b） |
-| 时延 ch0–10 | 默认每步在 2–5 ms 内随机采样 |
-| 时延 ch11 (VS) | 默认每步在 0–1 ms 内随机采样 |
-| 速率限制 | 7 路模板经 12D 映射，每步最大变化量 |
+| `um_values` | `[1500, 231, 231, 173, 173, 173, 173, 348, 348, 348, 348, 80]`，动作空间同步 |
+| `rate_deg` | 默认 `7.2` |
+| 时延 ch0–10 | 不传 `delay_s` 时每步在 2–5 ms 内随机 |
+| 时延 ch11 (VS) | 不传 `delay_s` 时每步在 0–1 ms 内随机 |
+| PSM | `configs/psm/fitting_coefficients_v4.mat`；150 ms 算例用 `*_rampup.mat` |
 
-选手仍只输出 12D 电压指令；实际进入 HFM 的电压经过上述模型。建议训练时覆盖一定延迟扰动以提升策略鲁棒性；电压变化率限幅按当前公开配置执行。
+配置入口：`predictor.power_supply`。`delay_s` 传 12 路秒数则固定延迟，传全 0 可关掉延迟。`shot_id` 会选用对应 mat。
 
 ## 示例
 
