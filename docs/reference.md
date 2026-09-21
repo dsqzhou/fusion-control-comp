@@ -24,33 +24,21 @@
 
 ## 2. 核心控制目标
 
-比赛最核心的控制目标是 `Ip`、`R`、`Z` 和 `lcfs_points`。
+比赛最核心的控制目标是 `Ip`、`R`、`Z` 以及形状量 `Rmax`、`Rmin`、`kappa`。
 
 | 字段 | 形状 | 含义 | 与控制目标的关系 |
 | --- | --- | --- | --- |
 | `Ip` | `(1,)` | 等离子体电流 | 直接对应电流跟踪目标 |
 | `R` | `(1,)` | 等离子体水平位置 | 直接对应位置控制目标 |
 | `Z` | `(1,)` | 等离子体垂直位置 | 直接对应位置控制目标 |
-| `lcfs_points` | `(32, 2)` | LCFS 边界点序列，每个点为 `(R, Z)` | 直接对应位形/边界控制目标 |
+| `Rmax` | `(1,)` | 最外半径 | 位形外扩跟踪 |
+| `Rmin` | `(1,)` | 最内半径 | 内边界跟踪 |
+| `kappa` | `(1,)` | 拉长比 | 截面形状跟踪 |
 
 说明：
 
-- `lcfs_points[i] = [R_i, Z_i]`
-- 可将 `lcfs_points` 理解为"边界轮廓采样点"
-
-### `lcfs_points` 与底层环境变量的关系
-
-底层环境中，LCFS 边界可由更原始的边界坐标数组表示：
-
-- `rB`：边界点的 `R` 坐标，维度 `32`
-- `zB`：边界点的 `Z` 坐标，维度 `32`
-
-在 `environment` 中，既暴露 `rB` / `zB`，也统一封装为：
-
-- `lcfs_points`：当前时刻边界点序列
-- `reference_lcfs_points`：当前时刻目标边界点序列
-
-`lcfs_points`更适合 AI 模型直接读取和奖励函数设计。边界点序列顺时针固定为 `(32, 2)`。
+- 上机没有实时 LCFS 点列，因此观测和 reference 都不提供 `lcfs_points` / `reference_lcfs_points`
+- HFM 仍可能下发原始 `rB` / `zB`，这是仿真边界坐标，不作为训练参考接口
 
 ## 3. 其他 observation 字段
 
@@ -130,7 +118,9 @@
 | `reference_R` | `(1,)` | 当前步目标水平位置 |
 | `reference_Z` | `(1,)` | 当前步目标垂直位置 |
 | `reference_lX` | `(1,)` | 当前步目标位形类型，F1 为 `0`，F2a/F2b 为 `1` |
-| `reference_lcfs_points` | `(32, 2)` | 当前步目标边界点序列 |
+| `reference_Rmax` | `(1,)` | 当前步目标最外半径 |
+| `reference_Rmin` | `(1,)` | 当前步目标最内半径 |
+| `reference_kappa` | `(1,)` | 当前步目标拉长比 |
 
 支持两类 reference 模式：
 
@@ -145,7 +135,9 @@
 | `reference["R"]` | `(T,)` 或标量 |
 | `reference["Z"]` | `(T,)` 或标量 |
 | `reference["lX"]` | `(T,)` 或标量 |
-| `reference["lcfs_points"]` | `(T, 32, 2)` 或 `(32, 2)` |
+| `reference["Rmax"]` | `(T,)` 或标量 |
+| `reference["Rmin"]` | `(T,)` 或标量 |
+| `reference["kappa"]` | `(T,)` 或标量 |
 
 其中 `T = max_steps`。
 
@@ -208,7 +200,7 @@ high = [ 1500,  231,  231,  173,  173,  173,  173,  348,  348,  348,  348,  80]
 - `Ip`：相对初始目标变化 `±100 kA`
 - `R`：相对初始目标变化 `±3 cm`
 - `Z`：基础阶段可先保持不变
-- `lcfs_points`：基础阶段可先保持不变，后续再加入更复杂的边界跟踪任务
+- `Rmax` / `Rmin` / `kappa`：基础阶段可先保持不变，后续再加入更复杂的形状跟踪
 
 这样做的好处是先把最核心的电流和位置控制学稳，再逐步扩大到更复杂的位形控制目标。
 
@@ -220,7 +212,7 @@ high = [ 1500,  231,  231,  173,  173,  173,  173,  348,  348,  348,  348,  80]
 | --- | --- | --- |
 | `max_steps` | `100` | episode 最大步数 |
 | `reference.mode` | `hold` | 默认 reference 模式 |
-| `reference.reference_keys` | `["Ip", "R", "Z", "lcfs_points"]` | 当前 reference 覆盖的核心目标 |
+| `reference.reference_keys` | `["Ip", "R", "Z", "Rmax", "Rmin", "kappa"]` | 当前 reference 覆盖的核心目标 |
 | `predictor.host` | `127.0.0.1` | Docker 仿真器地址 |
 | `predictor.port` | `5558` | Docker 仿真器端口 |
 | `predictor.timeout` | `300.0` | socket 通信超时时间 |
@@ -235,7 +227,7 @@ high = [ 1500,  231,  231,  173,  173,  173,  173,  348,  348,  348,  348,  80]
 
 ## 8. observation 快速理解
 
-- `Ip`、`R`、`Z`、`lcfs_points` 是最直接的控制目标
+- `Ip`、`R`、`Z`、`Rmax`、`Rmin`、`kappa` 是最直接的控制目标
 - `reference_*` 给出当前步希望达到的目标值
 - `I_PF` 提供"执行器当前处于什么状态"
 - `Rmax`、`Rmin`、`aminor`、`kappa` 等提供"整体形状压缩信息"

@@ -13,8 +13,6 @@ DEFAULT_FLAT_OBSERVATION_KEYS = [
     "reference_R",
     "reference_Z",
     "reference_lX",
-    "lcfs_points",
-    "reference_lcfs_points",
     "I_PF",
     "aminor",
     "deltal",

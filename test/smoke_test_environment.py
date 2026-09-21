@@ -36,12 +36,10 @@ def test_env_creation():
     obs_spaces = env.observation_space.spaces
     assert "rB" in obs_spaces
     assert "zB" in obs_spaces
-    assert "lcfs_points" in obs_spaces
-    assert "reference_lcfs_points" in obs_spaces
+    assert "lcfs_points" not in obs_spaces
+    assert "reference_lcfs_points" not in obs_spaces
     assert obs_spaces["rB"].shape == (32,)
     assert obs_spaces["zB"].shape == (32,)
-    assert obs_spaces["lcfs_points"].shape == (32, 2)
-    assert obs_spaces["reference_lcfs_points"].shape == (32, 2)
     env.close()
     print("HFMSimulator creation ok")
 

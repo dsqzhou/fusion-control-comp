@@ -63,7 +63,7 @@ def _load_shot_registry() -> dict[str, dict]:
 
 SHOT_REGISTRY: dict[str, dict] = _load_shot_registry()
 
-REFERENCE_KEYS = ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lX", "lcfs_points"]
+REFERENCE_KEYS = ["Ip", "R", "Z", "Rmax", "Rmin", "kappa", "lX"]
 
 
 def get_shot_spec(shot_id: str) -> dict:

@@ -47,10 +47,7 @@ RAW_OBSERVATION_SPECS: dict[str, tuple[int, ...]] = {
     "FX": (6,),
 }
 
-SCALAR_REFERENCE_KEYS = tuple(key for key in REFERENCE_KEYS if key != "lcfs_points")
-LCFS_NUM_POINTS = 32
-LCFS_POINT_DIM = 2
-LCFS_SERIES_DIM = 3
+SCALAR_REFERENCE_KEYS = tuple(REFERENCE_KEYS)
 XPT_REFERENCE_SPECS: dict[str, tuple[int, ...]] = {
     "rX": (4,),
     "zX": (4,),
@@ -89,36 +86,10 @@ def _coerce_raw_value(key: str, value: Any) -> np.ndarray:
     return arr.reshape(shape)
 
 
-def _resample_curve(values: np.ndarray, num_points: int = LCFS_NUM_POINTS) -> np.ndarray:
-    values = np.asarray(values, dtype=np.float64).reshape(-1)
-    if values.size == num_points:
-        return values
-    if values.size == 0:
-        return np.zeros((num_points,), dtype=np.float64)
-    if values.size == 1:
-        return np.full((num_points,), float(values[0]), dtype=np.float64)
-
-    src_x = np.linspace(0.0, 1.0, values.size)
-    dst_x = np.linspace(0.0, 1.0, num_points)
-    return np.interp(dst_x, src_x, values)
-
-
-def _empty_lcfs_points() -> np.ndarray:
-    return np.zeros((LCFS_NUM_POINTS, LCFS_POINT_DIM), dtype=np.float64)
-
-
-def _extract_lcfs_points(raw: dict[str, Any]) -> np.ndarray:
-    r_boundary = _resample_curve(_coerce_raw_value("rB", raw.get("rB")), LCFS_NUM_POINTS)
-    z_boundary = _resample_curve(_coerce_raw_value("zB", raw.get("zB")), LCFS_NUM_POINTS)
-    return np.stack([r_boundary, z_boundary], axis=-1)
-
-
 def _build_observation_space() -> gym.Space:
     spaces: dict[str, gym.Space] = {key: _box(shape) for key, shape in RAW_OBSERVATION_SPECS.items()}
-    spaces["lcfs_points"] = _box((LCFS_NUM_POINTS, LCFS_POINT_DIM))
     for key in SCALAR_REFERENCE_KEYS:
         spaces[f"reference_{key}"] = _box((1,))
-    spaces["reference_lcfs_points"] = _box((LCFS_NUM_POINTS, LCFS_POINT_DIM))
     for key, shape in XPT_REFERENCE_SPECS.items():
         spaces[f"reference_{key}"] = _box(shape)
     spaces["failure"] = gym.spaces.MultiBinary(1)
@@ -134,49 +105,6 @@ def _coerce_scalar_series(values: Any, max_steps: int, default: float) -> np.nda
             arr = np.full((max_steps,), float(arr[0]), dtype=np.float64)
         elif arr.size != max_steps:
             raise ValueError(f"Reference length must equal max_steps={max_steps}, got {arr.size}")
-    return arr
-
-
-def _normalize_lcfs_points(points: Any) -> np.ndarray:
-    arr = np.asarray(points, dtype=np.float64)
-    if arr.ndim != LCFS_POINT_DIM or arr.shape[1] != LCFS_POINT_DIM:
-        raise ValueError(f"LCFS points must have shape (N, {LCFS_POINT_DIM}), got {arr.shape}")
-    if arr.shape[0] == LCFS_NUM_POINTS:
-        return arr
-
-    r_boundary = _resample_curve(arr[:, 0], LCFS_NUM_POINTS)
-    z_boundary = _resample_curve(arr[:, 1], LCFS_NUM_POINTS)
-    return np.stack([r_boundary, z_boundary], axis=-1)
-
-
-def _coerce_lcfs_series(
-    values: Any,
-    max_steps: int,
-    default: np.ndarray,
-) -> np.ndarray:
-    if values is None:
-        return np.asarray(default, dtype=np.float64).copy()
-
-    arr = np.asarray(values, dtype=np.float64)
-    if arr.ndim == LCFS_POINT_DIM:
-        arr = np.repeat(_normalize_lcfs_points(arr)[None, ...], max_steps, axis=0)
-    elif arr.ndim == LCFS_SERIES_DIM and arr.shape[0] == max_steps and arr.shape[2] == LCFS_POINT_DIM:
-        if arr.shape[1] != LCFS_NUM_POINTS:
-            arr = np.stack(
-                [_normalize_lcfs_points(step_points) for step_points in arr],
-                axis=0,
-            )
-    else:
-        raise ValueError(
-            f"reference_lcfs_points must have shape ({max_steps}, N, {LCFS_POINT_DIM}) "
-            f"or (N, {LCFS_POINT_DIM}), got {arr.shape}"
-        )
-
-    if arr.shape != (max_steps, LCFS_NUM_POINTS, LCFS_POINT_DIM):
-        raise ValueError(
-            f"reference_lcfs_points must have shape ({max_steps}, {LCFS_NUM_POINTS}, {LCFS_POINT_DIM}), "
-            f"got {arr.shape}"
-        )
     return arr
 
 
@@ -206,7 +134,6 @@ def _coerce_vector_series(
 
 
 def _build_hold_reference(raw: dict[str, Any], max_steps: int) -> dict[str, np.ndarray]:
-    lcfs_points = _extract_lcfs_points(raw)
     reference = {
         key: np.full(
             (max_steps,),
@@ -215,7 +142,6 @@ def _build_hold_reference(raw: dict[str, Any], max_steps: int) -> dict[str, np.n
         )
         for key in SCALAR_REFERENCE_KEYS
     }
-    reference["lcfs_points"] = np.repeat(lcfs_points[None, ...], max_steps, axis=0)
     for key, shape in XPT_REFERENCE_SPECS.items():
         reference[key] = np.zeros((max_steps,) + shape, dtype=np.float64)
     return reference
@@ -239,11 +165,6 @@ def _build_reference_trajectory(
         key: _coerce_scalar_series(reference_spec.get(key), max_steps, float(hold_ref[key][0]))
         for key in SCALAR_REFERENCE_KEYS
     }
-    reference["lcfs_points"] = _coerce_lcfs_series(
-        reference_spec.get("lcfs_points"),
-        max_steps,
-        hold_ref["lcfs_points"],
-    )
     for key, shape in XPT_REFERENCE_SPECS.items():
         reference[key] = _coerce_vector_series(
             reference_spec.get(key),
@@ -260,12 +181,10 @@ def _obs_dict_from_raw(
     reference_index: int,
 ) -> dict[str, Any]:
     out = {key: _coerce_raw_value(key, raw.get(key)) for key in RAW_OBSERVATION_SPECS}
-    out["lcfs_points"] = _extract_lcfs_points(raw)
 
     ref_idx = int(min(max(reference_index, 0), len(reference["Ip"]) - 1))
     for key in SCALAR_REFERENCE_KEYS:
         out[f"reference_{key}"] = np.array([reference[key][ref_idx]], dtype=np.float64)
-    out["reference_lcfs_points"] = np.asarray(reference["lcfs_points"][ref_idx], dtype=np.float64)
     for key in XPT_REFERENCE_SPECS:
         out[f"reference_{key}"] = np.asarray(reference[key][ref_idx], dtype=np.float64)
     out["failure"] = np.array([1 if raw.get("failure", False) else 0], dtype=np.uint8)

@@ -3,7 +3,7 @@ max_steps: 100
 
 reference:
   mode: "hold"
-  reference_keys: ["Ip", "R", "Z", "lcfs_points"]
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa"]
 
 predictor:
   host: "127.0.0.1"

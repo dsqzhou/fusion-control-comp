@@ -91,7 +91,6 @@ def build_reference(task: str, target: TargetReference, max_steps: int) -> dict[
 
     reference: dict[str, Any] = {
         "Ip": ip.tolist(),
-        "lcfs_points": np.repeat(target.lcfs[None, :, :], max_steps, axis=0).tolist(),
     }
     if target.has_xpt:
         reference.update(
@@ -117,7 +116,7 @@ def config_for_port(base_config: dict[str, Any], *, port: int, shot_id: str, max
     cfg["predictor"]["shot_id"] = shot_id
     cfg["reference"] = {
         "mode": "trajectory",
-        "reference_keys": ["Ip", "R", "Z", "lcfs_points"],
+        "reference_keys": ["Ip", "R", "Z"],
         "reference": build_reference(task, target, max_steps),
     }
     return cfg
@@ -134,8 +133,10 @@ class SemifinalReward:
         ref_ip = scalar(observation, "reference_Ip", self.target.ip_final)
         ip_score = 1.0 - min(abs(scalar(observation, "Ip") - ref_ip) / 50_000.0, 1.0)
 
-        lcfs = np.asarray(observation.get("lcfs_points", np.zeros((32, 2))), dtype=np.float64)
-        ref_lcfs = np.asarray(observation.get("reference_lcfs_points", self.target.lcfs), dtype=np.float64)
+        r_b = np.asarray(observation.get("rB", np.zeros(32)), dtype=np.float64).reshape(-1)
+        z_b = np.asarray(observation.get("zB", np.zeros(32)), dtype=np.float64).reshape(-1)
+        lcfs = np.stack([r_b, z_b], axis=-1) if r_b.size and z_b.size else np.zeros((32, 2))
+        ref_lcfs = np.asarray(self.target.lcfs, dtype=np.float64)
         n = min(len(lcfs), len(ref_lcfs))
         lcfs_cm = float(np.sqrt(np.mean(np.sum((lcfs[:n] - ref_lcfs[:n]) ** 2, axis=1))) * 100.0)
         lcfs_score = 1.0 - min(lcfs_cm / 5.0, 1.0)
@@ -195,7 +196,7 @@ class SemifinalReward:
 
 
 def flatten_keys(target: TargetReference) -> list[str]:
-    keys = ["Ip", "reference_Ip", "lcfs_points", "reference_lcfs_points", "I_PF"]
+    keys = ["Ip", "reference_Ip", "I_PF"]
     if target.has_xpt:
         keys += [
             "rX",

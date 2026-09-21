@@ -269,8 +269,8 @@ obs, info = env.reset(seed=42, options=options)
 
 环境输出为全量字典，重点可分为三类：
 
-- 核心控制目标：`Ip`、`R`、`Z`、`lcfs_points`
-- 当前步目标：`reference_Ip`、`reference_R`、`reference_Z`、`reference_lcfs_points`
+- 核心控制目标：`Ip`、`R`、`Z`、`Rmax`、`Rmin`、`kappa`
+- 当前步目标：`reference_Ip`、`reference_R`、`reference_Z`、`reference_Rmax`、`reference_Rmin`、`reference_kappa`
 - 辅助状态量：`I_PF`、`Rmax`、`Rmin`、`aminor`、`deltal`、`deltau`、`kappa`、`Bm`、`Ff`、`Fx` 等
 
 说明：
