@@ -373,7 +373,7 @@ options = {
 
 ## ONNX 导出与提交工作流
 
-本地训练完成后，需要将模型导出为 ONNX 格式，并按 `submission/` 目录的要求打包为 Docker 镜像。复赛使用双服务提交模板，具体模型命名、推理入口和本地检查方式以 `README_SEMIFINAL.md` 与 `submission/README.md` 为准。
+本地训练完成后，需要将模型导出为 ONNX 格式，并按 `submission/` 目录的要求打包为 Docker 镜像。模型命名、推理入口和本地检查方式以 `submission/README.md` 为准。合作训练算例见 `docs/cases.md`。
 
 ### 推荐流程（示例）
 
@@ -399,7 +399,7 @@ python test_submission.py --launch-service docker --service-url http://127.0.0.1
 ```
 
 **注意**：
-- 复赛模型文件和推理入口见 `README_SEMIFINAL.md` 与 `submission/README.md`
+- 模型文件和推理入口见 `submission/README.md`
 - `submission/Dockerfile`、`start_infer.sh`、`run.sh` 及容器内路径均**不可修改**，详见 `submission/README.md`
 
 ### 本地评估
@@ -446,7 +446,7 @@ v[5]  → u[9] = u[10]
 v[6]  → u[11]        # 第 7 维为快控线圈电压，单独控制
 ```
 
-这种对称保持的做法通常更有利于维持等离子体整体稳定。复赛动作建议和提交细节见 `README_SEMIFINAL.md`。
+这种对称保持的做法通常更有利于维持等离子体整体稳定。提交细节见 `submission/README.md`。
 
 ## 示例结果与评分（参考）
 

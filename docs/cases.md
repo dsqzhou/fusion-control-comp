@@ -76,15 +76,27 @@ Rmax=1.26，Rmin=0.29，Z=-0.015，Ip=500 kA，kappa=1.85。
 | 400 kA | `21710_300` | Rmax 1.27，Rmin 0.29，Ip 400 kA，kappa 1.85 |
 | 500 kA | `21311_300` / `21316_300` | Rmax 1.26，Rmin 0.29，Ip 500 kA，kappa 1.85 |
 
-`*_150` 的 `reference.mode=trajectory` 仍是爬升程序。平顶维持用 `configs/case_21311_150_hold.yaml`（`mode: hold`）。21710 / 21743 的默认轨迹已经是各自的常值。
+平顶维持加载下面的 yaml。`case_21311_150.yaml` 和 `case_21316_150.yaml` 是爬升程序，Ip 会走到 500 kA，这个任务不要用。
 
-时变把 LX 的 `v4` 换成 `v4.1`，并去掉 bp、q0。
+| 用途 | yaml |
+| --- | --- |
+| 300 kA 训练 | `configs/case_21311_150_hold.yaml` |
+| 300 kA 测试 | `configs/case_21316_150_hold.yaml` |
+| 400 kA 训练 | `configs/case_21743_300.yaml` |
+| 400 kA 测试 | `configs/case_21710_300.yaml` |
+| 400 kA 不同 bp | `configs/case_21743_200.yaml`、`configs/case_21743_400.yaml` |
+| 400 kA 加测 | `configs/case_21710_200.yaml` |
+| 500 kA 训练 | `configs/case_21311_300.yaml` |
+| 500 kA 测试 | `configs/case_21316_300.yaml` |
+
+`*_150_hold.yaml` 的 `reference.mode` 是 `hold`，目标停在 t=0。21710 / 21743 和 `*_300.yaml` 的默认轨迹已经是各自的常值。时变把 LX 的 `v4` 换成 `v4.1`，并去掉 bp、q0。
 
 ## 入口
 
 ```bash
-python examples/run_case.py --shot 21316_150 --dry-run
-python examples/run_case.py --shot 21316_300
+python examples/run_case.py --shot 21311_150 --config configs/case_21311_150_hold.yaml --dry-run
+python examples/run_case.py --shot 21743_300 --dry-run
+python examples/run_case.py --shot 21311_300 --dry-run
 ```
 
-对应 yaml：`configs/case_<shot_id>.yaml`。
+爬升轨迹仍是 `configs/case_21311_150.yaml` / `configs/case_21316_150.yaml`，和平顶维持分开。
