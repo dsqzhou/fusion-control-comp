@@ -1,0 +1,14 @@
+# 21710 400 kA，起始 300 ms。Rmax 1.27，不要套 21743。
+max_steps: 500
+
+reference:
+  mode: trajectory
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21710_300"
+  power_supply:
+    rate_deg: 7.2

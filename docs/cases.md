@@ -14,8 +14,8 @@ UOUT --clip(um)--> delay(可配置) --> uout_to_urec(7.2°) --> PSM(.mat, VS 旁
 
 | 算例 | PSM 文件 | 说明 |
 | --- | --- | --- |
-| `*_150` | `configs/psm/fitting_coefficients_v4_rampup.mat` | 爬升段 CS 正组 |
-| `*_300` / `*_timevar` | `configs/psm/fitting_coefficients_v4.mat` | CS 负组 |
+| `21311_150` / `21316_150` | `configs/psm/fitting_coefficients_v4_rampup.mat` | 爬升段 CS 正组 |
+| 其余合作算例 | `configs/psm/fitting_coefficients_v4.mat` | CS 负组 |
 
 v4 与 rampup 的斜率相同，只有 CS 截距不同（`+113` vs `-64`）。
 
@@ -36,6 +36,11 @@ CS, PS1, PS2, PS3, PS4, PS5, PS6, PS7, PS8, PS9, PS10, VS
 | `21316_150` | 150 ms | `ini_21316_150_v4.mat` | 0.04 / 2.62 |
 | `21316_300` | 300 ms | `ini_21316_300_v4.mat` | 0.06 / 1.80 |
 | `21316_timevar` | 300 ms | `ini_21316_300_v4.1.mat` | 不传，用 LX 剖面 |
+| `21743_200` | 200 ms | `ini_21743_200_v4.mat` | 0.012 / 2.47 |
+| `21743_300` | 300 ms | `ini_21743_300_v4.mat` | 0.21 / 2.01 |
+| `21743_400` | 400 ms | `ini_21743_400_v4.mat` | 0.28 / 1.84 |
+| `21710_200` | 200 ms | `ini_21710_200_v4.mat` | 0.02 / 2.60 |
+| `21710_300` | 300 ms | `ini_21710_300_v4.mat` | 0.08 / 2.21 |
 
 L 一律 `ini_L_v4.1.mat`。150 ms 时变把对应 LX 的 `v4` 改成 `v4.1`，并去掉 bp/q0 即可。
 
@@ -58,6 +63,22 @@ L 一律 `ini_L_v4.1.mat`。150 ms 时变把对应 LX 的 `v4` 改成 `v4.1`，�
 Rmax=1.26，Rmin=0.29，Z=-0.015，Ip=500 kA，kappa=1.85。
 
 训练时可叠加扰动：21316 的 Rmax ≤ 4 cm、21311 的 Rmax ≤ 3 cm，Rmin ≤ 1.5 cm；波形主频率可取 3 Hz 和 30 Hz 附近。
+
+## 平顶维持
+
+不跟爬升程序，参考等于该算例 t=0。
+
+| 档 | shot | 维持目标 |
+| --- | --- | --- |
+| 300 kA | `21311_150` / `21316_150` | Rmax 1.13，Rmin 0.27，Ip 320 kA，kappa 1.60 |
+| 400 kA | `21743_200/300/400` | Rmax 1.24，Rmin 0.31，Ip 400 kA，kappa 1.85 |
+| 400 kA | `21710_200` | Rmax 1.25，Rmin 0.29，Ip 400 kA，kappa 1.85 |
+| 400 kA | `21710_300` | Rmax 1.27，Rmin 0.29，Ip 400 kA，kappa 1.85 |
+| 500 kA | `21311_300` / `21316_300` | Rmax 1.26，Rmin 0.29，Ip 500 kA，kappa 1.85 |
+
+`*_150` 的 `reference.mode=trajectory` 仍是爬升程序。平顶维持用 `configs/case_21311_150_hold.yaml`（`mode: hold`）。21710 / 21743 的默认轨迹已经是各自的常值。
+
+时变把 LX 的 `v4` 换成 `v4.1`，并去掉 bp、q0。
 
 ## 入口
 

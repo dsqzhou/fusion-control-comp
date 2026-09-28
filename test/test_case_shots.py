@@ -62,6 +62,29 @@ def test_300_reference_holds():
     assert np.allclose(ref["kappa"], 1.85)
 
 
+def test_150_hold_keeps_initial():
+    ref = build_case_reference("21311_150", max_steps=20, hold_initial=True)
+    assert np.allclose(ref["Ip"], 320e3)
+    assert np.allclose(ref["Rmax"], 1.13)
+    assert np.allclose(ref["kappa"], 1.60)
+
+
+def test_400ka_references():
+    ref_21743 = build_case_reference("21743_300", max_steps=10)
+    ref_21710 = build_case_reference("21710_300", max_steps=10)
+    ref_21710_200 = build_case_reference("21710_200", max_steps=10)
+    assert np.allclose(ref_21743["Ip"], 400e3)
+    assert np.allclose(ref_21743["Rmax"], 1.24)
+    assert np.allclose(ref_21743["Rmin"], 0.31)
+    assert np.allclose(ref_21710["Rmax"], 1.27)
+    assert np.allclose(ref_21710_200["Rmax"], 1.25)
+    assert "rampup" not in get_shot_psm_config_path("21743_200")
+    cfg = get_fge_init_config_for_shot("21743_400")
+    assert cfg["bp"] == 0.28
+    assert cfg["q0"] == 1.84
+    assert cfg["LX_addr"].endswith("ini_21743_400_v4.mat")
+
+
 if __name__ == "__main__":
     test_case_shots_registered()
     test_150_uses_rampup_psm()
@@ -69,4 +92,6 @@ if __name__ == "__main__":
     test_non_timevar_keeps_bp_q0()
     test_150_reference_ramps()
     test_300_reference_holds()
+    test_150_hold_keeps_initial()
+    test_400ka_references()
     print("test_case_shots passed.")

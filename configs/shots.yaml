@@ -134,3 +134,84 @@
     use_linear: true
   reset_defaults:
     signeo: 7.1e6
+
+# 21710 / 21743: 400 kA 平顶。几何按各时刻初始值维持，电源用 v4。
+"21710_200":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21710_200_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 200
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 5.2e6
+    bp: 0.02
+    q0: 2.6
+
+"21710_300":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21710_300_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 5.4e6
+    bp: 0.08
+    q0: 2.21
+
+"21743_200":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21743_200_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 200
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 3.8e6
+    bp: 0.012
+    q0: 2.47
+
+"21743_300":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21743_300_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 300
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 5.4e6
+    bp: 0.21
+    q0: 2.01
+
+"21743_400":
+  L_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_L_v4.1.mat"
+  LX_addr: "TOK_EXL50U/XL50U_fge/Data/FGE_INI/ini_21743_400_v4.mat"
+  psm_config_path: "configs/psm/fitting_coefficients_v4.mat"
+  start_time_ms: 400
+  fge_init:
+    z_target: -0.015
+    use_pid_z: true
+    Lp_scale: 1
+    output_shape: true
+    use_linear: true
+  reset_defaults:
+    signeo: 6.7e6
+    bp: 0.28
+    q0: 1.84

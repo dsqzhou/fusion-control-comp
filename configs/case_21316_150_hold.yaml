@@ -1,0 +1,14 @@
+# 21316 150 ms 平顶维持（300 kA 档）。不走爬升程序，目标是 t=0。
+max_steps: 500
+
+reference:
+  mode: hold
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21316_150"
+  power_supply:
+    rate_deg: 7.2

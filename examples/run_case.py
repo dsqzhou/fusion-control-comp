@@ -28,7 +28,12 @@ def main() -> int:
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     max_steps = int(args.max_steps or cfg.get("max_steps", 100))
     init_cfg = get_fge_init_config_for_shot(args.shot)
-    reference = build_case_reference(args.shot, max_steps)
+    reference_mode = (cfg.get("reference") or {}).get("mode", "trajectory")
+    reference = build_case_reference(
+        args.shot,
+        max_steps,
+        hold_initial=(reference_mode == "hold"),
+    )
 
     print(f"shot_id={args.shot}")
     print(f"psm={get_shot_psm_config_path(args.shot)}")

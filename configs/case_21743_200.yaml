@@ -1,0 +1,14 @@
+# 21743 400 kA，起始 200 ms。参考维持初始位形。
+max_steps: 500
+
+reference:
+  mode: trajectory
+  reference_keys: ["Ip", "R", "Z", "Rmax", "Rmin", "kappa"]
+
+predictor:
+  host: "127.0.0.1"
+  port: 5558
+  timeout: 300.0
+  shot_id: "21743_200"
+  power_supply:
+    rate_deg: 7.2
